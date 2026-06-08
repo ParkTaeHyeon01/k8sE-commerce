@@ -12,7 +12,7 @@ load_dotenv()
 from confluent_kafka import Consumer
 
 from logger import get_logger
-from mongo_loader import get_collection, upsert_product
+from mongo_loader import get_collection, sync_targets, upsert_product
 
 _BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 _TOPIC = os.environ.get("KAFKA_PRODUCT_TOPIC", "crawled-products")
@@ -27,11 +27,27 @@ _CONSUMER_CONFIG = {
 
 
 def handle_message(collection, logger_factory, raw_value: bytes) -> None:
-    """메시지 하나(상품 하나)를 파싱해 MongoDB에 적재한다."""
-    product = json.loads(raw_value.decode("utf-8"))
-    trace_id = product.get("trace_id", "unknown")
+    """메시지 하나를 파싱해 MongoDB에 반영한다.
+
+    - 상품 메시지(기본): product_id 기준 upsert
+    - 정리(sync) 메시지: 이번 크롤링에서 보이지 않은 상품을 target에서 제거
+      (베스트/할인 목록에서 빠진 상품을 더 이상 노출하지 않기 위함)
+    """
+    message = json.loads(raw_value.decode("utf-8"))
+    trace_id = message.get("trace_id", "unknown")
     logger = logger_factory(trace_id)
 
+    if message.get("type") == "sync":
+        target = message["target"]
+        product_ids = message["product_ids"]
+        removed = sync_targets(collection, target, product_ids)
+        logger.info(
+            f"정리(sync) 완료 - target={target} "
+            f"확인된 상품 {len(product_ids)}건, target 제거된 상품 {removed}건"
+        )
+        return
+
+    product = message
     upsert_product(collection, product)
     logger.info(
         f"적재 완료 - product_id={product['product_id']} "

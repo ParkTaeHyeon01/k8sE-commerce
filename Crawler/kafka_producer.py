@@ -40,6 +40,33 @@ def send_product(producer: Producer, logger, trace_id: str, product: dict) -> No
     producer.poll(0)
 
 
+def send_sync(producer: Producer, logger, trace_id: str, target: str, product_ids: list[str], crawled_at: str) -> None:
+    """이번 크롤링 사이클에서 확인된 product_id 전체 목록을 정리(sync) 메시지로 전송한다.
+
+    원본 사이트의 베스트/할인 목록은 수시로 바뀌므로, 이번에 보이지 않은 상품은
+    targets 배열에서 빠져야 한다 (그래야 더 이상 베스트/할인 메뉴에 노출되지 않음).
+    이 한 건의 메시지로 컨슈머가 "안 보인 상품의 target 제거"를 일괄 처리한다.
+    """
+    payload = {
+        "type": "sync",
+        "target": target,
+        "product_ids": product_ids,
+        "trace_id": trace_id,
+        "crawled_at": crawled_at,
+    }
+    key = f"sync:{target}".encode("utf-8")
+    value = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    def _on_delivery(err, _msg):
+        if err:
+            logger.error(f"Kafka 정리(sync) 메시지 전송 실패 - target={target}: {err}")
+        else:
+            logger.info(f"Kafka 정리(sync) 메시지 전송 완료 - target={target} 상품 {len(product_ids)}건")
+
+    producer.produce(_TOPIC, key=key, value=value, callback=_on_delivery)
+    producer.poll(0)
+
+
 def flush(producer: Producer) -> None:
     """전송 큐에 남아있는 메시지를 모두 내보낸다 (크롤링 종료 시 호출)."""
     producer.flush()

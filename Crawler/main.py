@@ -97,6 +97,9 @@ async def run() -> None:
 
     producer = kafka_producer.create_producer()
     sent_count = 0
+    # 이번 크롤링에서 확인된 product_id를 모아두었다가, 끝에 정리(sync) 메시지로 전송한다
+    # -> 이번에 보이지 않은 상품은 베스트/할인 목록에서 빠진 것이므로 targets에서 제거된다
+    seen_product_ids: list[str] = []
 
     async with Stealth().use_async(async_playwright()) as p:
         # k8s 컨테이너에는 디스플레이가 없으므로 headless로 실행한다
@@ -121,11 +124,13 @@ async def run() -> None:
             for product in products:
                 await process_product(page, logger, producer, trace_id, crawled_at, category_context, product)
                 sent_count += 1
+                seen_product_ids.append(product["product_id"])
 
         await browser.close()
 
+    kafka_producer.send_sync(producer, logger, trace_id, CRAWL_TARGET, seen_product_ids, crawled_at)
     kafka_producer.flush(producer)
-    logger.info(f"크롤링 작업 종료 - 총 {sent_count}건 전송")
+    logger.info(f"크롤링 작업 종료 - 총 {sent_count}건 전송 (정리 대상 {len(seen_product_ids)}건)")
 
 
 def main():

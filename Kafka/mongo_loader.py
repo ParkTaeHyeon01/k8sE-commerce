@@ -45,3 +45,19 @@ def upsert_product(collection, product: dict) -> None:
         },
         upsert=True,
     )
+
+
+def sync_targets(collection, target: str, product_ids: list[str]) -> int:
+    """이번 크롤링에서 보이지 않은 상품을 target에서 제거해 원본 목록과 동기화한다.
+
+    $addToSet은 누적만 하므로, 베스트/할인 목록에서 빠진 상품도 targets에 그대로
+    남는 문제가 있었다. 이번 크롤링에서 확인된 product_id 목록(product_ids)에
+    없으면서 이 target을 갖고 있는 상품은 $pull로 target을 제거한다.
+    (모든 target이 빠지더라도 상품 문서 자체는 삭제하지 않는다 - 상세페이지 등에서
+    여전히 조회될 수 있다)
+    """
+    result = collection.update_many(
+        {"targets": target, "product_id": {"$nin": product_ids}},
+        {"$pull": {"targets": target}},
+    )
+    return result.modified_count
