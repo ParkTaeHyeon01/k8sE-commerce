@@ -1,8 +1,12 @@
 # 크롤러 진입점
 # 흐름: trace_id 생성 -> (.env의 CRAWL_TARGET으로 선택된 컬렉션) x 식품 카테고리 순회
-#       -> 카테고리별 상품 파싱 -> 로컬 JSON 저장
+#       -> 카테고리별 상품 목록 파싱 -> 상품마다 상세페이지 수집 -> 완성되는 즉시 Kafka로 전송
+#
+# 상품을 모았다가 끝에 한번에 보내지 않고 "완성되는 즉시 전송"하는 이유:
+#   크롤러가 중간에 멈춰도 이미 보낸 상품은 안전하게 적재되고, MongoDB 적재는
+#   product_id 기준 upsert라 재실행 시 같은 상품을 다시 만나도 안전하다
+#   (멱등성으로 재개 문제를 해결 - 별도의 진행상황 추적 파일이 필요 없다)
 import asyncio
-import json
 import os
 import uuid
 from datetime import datetime, timezone
@@ -11,9 +15,10 @@ from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
+import kafka_producer
 from logger import get_logger
 from pages import COLLECTIONS, FOOD_CATEGORIES, build_url
-from parsers import kurly
+from parsers import kurly, kurly_detail
 
 # 로컬 개발 중에는 .env 파일에서, k8s에서는 ConfigMap/Secret으로 주입된 환경변수를 그대로 사용한다
 load_dotenv()
@@ -27,8 +32,9 @@ USER_AGENT = (
 CRAWL_TARGET = os.environ.get("CRAWL_TARGET", "best")
 
 
-async def crawl_category(page, logger, label: str, category_name: str, url: str) -> list[dict]:
-    logger.info(f"수집 시작 - {label}/{category_name} ({url})")
+async def crawl_category_list(page, logger, label: str, category_name: str, url: str) -> list[dict]:
+    """카테고리 페이지에서 상품 목록(카드 정보)만 수집한다."""
+    logger.info(f"목록 수집 시작 - {label}/{category_name} ({url})")
     await page.goto(url, wait_until="domcontentloaded", timeout=50000)
     await page.wait_for_timeout(2000)
 
@@ -38,11 +44,47 @@ async def crawl_category(page, logger, label: str, category_name: str, url: str)
         await page.wait_for_timeout(1000)
 
     products = await kurly.parse_page(page)
-    logger.info(f"수집 완료 - {label}/{category_name} 상품 {len(products)}건")
+    logger.info(f"목록 수집 완료 - {label}/{category_name} 상품 {len(products)}건")
     return products
 
 
-async def run() -> dict:
+async def fill_detail(page, product: dict) -> None:
+    """상품 상세페이지를 방문해 상세이미지를 채운다 (실패 시 호출 측에서 처리하도록 예외를 그대로 던진다)."""
+    await page.goto(product["detail_url"], wait_until="domcontentloaded", timeout=50000)
+    await page.wait_for_timeout(1500)
+
+    # 상세 설명 영역(#description)은 지연 로딩되므로 스크롤로 불러온 뒤 추출한다
+    for _ in range(4):
+        await page.mouse.wheel(0, 2500)
+        await page.wait_for_timeout(600)
+
+    detail = await kurly_detail.parse_detail(page)
+    product["detail_images"] = detail["detail_images"]
+
+
+async def process_product(page, logger, producer, trace_id: str, crawled_at: str, category_context: dict, product: dict) -> None:
+    """상품 하나의 카테고리 정보를 채우고, 상세 수집까지 마친 뒤 Kafka로 전송한다.
+
+    상세 수집에 성공하면 status="ready"(서비스에 노출 가능),
+    실패하면 status="draft"(목록 정보만 적재 - 다음 크롤링에서 다시 시도됨)로 표시한다.
+    """
+    product.update({
+        **category_context,
+        "crawled_at": crawled_at,
+    })
+
+    try:
+        await fill_detail(page, product)
+        product["status"] = "ready"
+    except Exception as e:
+        logger.error(f"상세 수집 실패 - {product['name']} ({product['product_id']}): {e}")
+        product["detail_images"] = []
+        product["status"] = "draft"
+
+    kafka_producer.send_product(producer, logger, trace_id, product)
+
+
+async def run() -> None:
     trace_id = str(uuid.uuid4())
     crawled_at = datetime.now(timezone.utc).isoformat()
     logger = get_logger("crawler", trace_id)
@@ -53,7 +95,8 @@ async def run() -> dict:
     label = COLLECTIONS[CRAWL_TARGET]["label"]
     logger.info(f"크롤링 작업 시작 - 대상: {label}, 카테고리 {len(FOOD_CATEGORIES)}개")
 
-    results = []
+    producer = kafka_producer.create_producer()
+    sent_count = 0
 
     async with Stealth().use_async(async_playwright()) as p:
         # k8s 컨테이너에는 디스플레이가 없으므로 headless로 실행한다
@@ -64,38 +107,29 @@ async def run() -> dict:
         for category_code, category_name in FOOD_CATEGORIES.items():
             url = build_url(CRAWL_TARGET, category_code)
             try:
-                products = await crawl_category(page, logger, label, category_name, url)
+                products = await crawl_category_list(page, logger, label, category_name, url)
             except Exception as e:
-                logger.error(f"수집 실패 - {label}/{category_name}: {e}")
+                logger.error(f"목록 수집 실패 - {label}/{category_name}: {e}")
                 continue
 
-            results.append({
+            category_context = {
                 "target": CRAWL_TARGET,
                 "label": label,
                 "category_code": category_code,
                 "category_name": category_name,
-                "url": url,
-                "products": products,
-            })
+            }
+            for product in products:
+                await process_product(page, logger, producer, trace_id, crawled_at, category_context, product)
+                sent_count += 1
 
         await browser.close()
 
-    logger.info("크롤링 작업 종료")
-
-    return {
-        "trace_id": trace_id,
-        "crawled_at": crawled_at,
-        "target": CRAWL_TARGET,
-        "results": results,
-    }
+    kafka_producer.flush(producer)
+    logger.info(f"크롤링 작업 종료 - 총 {sent_count}건 전송")
 
 
 def main():
-    output = asyncio.run(run())
-    file_name = f"crawled_{output['target']}_{output['trace_id']}.json"
-    with open(file_name, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
-    print(f"저장 완료: {file_name}")
+    asyncio.run(run())
 
 
 if __name__ == "__main__":
