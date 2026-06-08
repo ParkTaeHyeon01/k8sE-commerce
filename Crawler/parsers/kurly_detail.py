@@ -7,6 +7,10 @@
 DESCRIPTION_SELECTOR = "#description .goods_wrap"
 _BLOCK_SELECTOR = "img, h3, p.words"
 
+# "자세히보기 이미지"는 #description 바깥(#detail 바로 아래, 상품고시정보 바로 위)에
+# 별도 컨테이너로 존재하지만 시각적으로는 본문 마지막 이미지다 -> 끝에 추가로 붙인다
+_TRAILING_IMAGE_SELECTOR = '#detail img[alt="자세히보기 이미지"]'
+
 
 async def extract_detail_blocks(page) -> list[dict]:
     """상세 설명 영역을 등장 순서대로 {type, value} 블록 배열로 추출한다.
@@ -33,6 +37,14 @@ async def extract_detail_blocks(page) -> list[dict]:
                 blocks.append(block)
         elif block["value"]:
             blocks.append(block)
+
+    trailing_sources = await page.locator(_TRAILING_IMAGE_SELECTOR).evaluate_all(
+        "els => els.map(e => e.getAttribute('src') || e.getAttribute('data-src'))"
+    )
+    for src in trailing_sources:
+        if src and "kurly.com" in src:
+            blocks.append({"type": "image", "value": src})
+
     return blocks
 
 
