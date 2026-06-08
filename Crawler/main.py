@@ -59,7 +59,7 @@ async def fill_detail(page, product: dict) -> None:
         await page.wait_for_timeout(600)
 
     detail = await kurly_detail.parse_detail(page)
-    product["detail_images"] = detail["detail_images"]
+    product["detail_blocks"] = detail["detail_blocks"]
 
 
 async def process_product(page, logger, producer, trace_id: str, crawled_at: str, category_context: dict, product: dict) -> None:
@@ -78,7 +78,7 @@ async def process_product(page, logger, producer, trace_id: str, crawled_at: str
         product["status"] = "ready"
     except Exception as e:
         logger.error(f"상세 수집 실패 - {product['name']} ({product['product_id']}): {e}")
-        product["detail_images"] = []
+        product["detail_blocks"] = []
         product["status"] = "draft"
 
     kafka_producer.send_product(producer, logger, trace_id, product)

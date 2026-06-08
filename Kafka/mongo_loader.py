@@ -17,7 +17,7 @@ _COLLECTION_NAME = "products"
 _FIELDS = (
     "category_code", "category_name", "name",
     "original_price", "sale_price", "discount_rate", "delivery_info",
-    "image_url", "detail_url", "detail_images",
+    "image_url", "detail_url", "detail_blocks",
     "status", "trace_id", "crawled_at",
 )
 
