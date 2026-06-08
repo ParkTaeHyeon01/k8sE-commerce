@@ -6,21 +6,40 @@ import re
 # 상품 카드 컨테이너 (지연 로딩이라 크롤러 쪽에서 스크롤 후 호출해야 한다)
 ITEM_SELECTOR = "article"
 
+_SITE_ORIGIN = "https://www.kurly.com"
 _CART_BUTTON = "담기"
 _PRICE_PATTERN = re.compile(r"^([\d,]+)원~?$")
 _PERCENT_PATTERN = re.compile(r"^(\d{1,3})%$")
+_GOODS_ID_PATTERN = re.compile(r"/goods/(\d+)")
 
 
-async def extract_raw_items(page) -> list[str]:
-    """페이지에서 후보 항목들의 원본 텍스트 목록을 가져온다."""
+async def extract_raw_items(page) -> list[dict]:
+    """페이지에서 후보 항목들의 원본 정보(텍스트/상세링크/이미지)를 가져온다."""
     locator = page.locator(ITEM_SELECTOR)
     count = await locator.count()
-    return [await locator.nth(i).inner_text() for i in range(count)]
+    raw_items = []
+    for i in range(count):
+        card = locator.nth(i)
+        raw_items.append({
+            "text": await card.inner_text(),
+            # 카드를 감싸는 링크가 상세페이지 주소다 (/goods/{product_id})
+            "href": await card.locator("a").first.get_attribute("href"),
+            # 카드의 첫 번째 이미지가 상품 이미지, 두 번째는 혜택 뱃지 스티커다
+            "image_url": await card.locator("img").first.get_attribute("src"),
+        })
+    return raw_items
 
 
-def parse_item(raw_text: str) -> dict | None:
-    """항목 텍스트 하나를 파싱한다. '담기' 버튼이 없으면 상품 카드가 아니므로 None을 반환한다."""
-    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
+def parse_item(raw_item: dict) -> dict | None:
+    """항목 정보 하나를 파싱한다. '담기' 버튼이 없으면 상품 카드가 아니므로 None을 반환한다."""
+    href = raw_item.get("href") or ""
+    goods_id_match = _GOODS_ID_PATTERN.search(href)
+    if not goods_id_match:
+        return None
+    product_id = goods_id_match.group(1)
+    detail_url = _SITE_ORIGIN + href
+
+    lines = [line.strip() for line in raw_item["text"].split("\n") if line.strip()]
     if _CART_BUTTON not in lines:
         return None
 
@@ -55,6 +74,9 @@ def parse_item(raw_text: str) -> dict | None:
         return None
 
     return {
+        "product_id": product_id,
+        "detail_url": detail_url,
+        "image_url": raw_item.get("image_url"),
         "name": name,
         "original_price": original_price,
         "sale_price": sale_price,
