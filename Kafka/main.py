@@ -5,12 +5,14 @@ import json
 import os
 
 from dotenv import load_dotenv
+
+# mongo_loader가 모듈 로드 시점에 환경변수를 읽으므로, 그보다 먼저 .env를 적용해야 한다
+load_dotenv()
+
 from confluent_kafka import Consumer
 
 from logger import get_logger
 from mongo_loader import get_collection, upsert_product
-
-load_dotenv()
 
 _BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 _TOPIC = os.environ.get("KAFKA_PRODUCT_TOPIC", "crawled-products")
