@@ -5,8 +5,15 @@
 __pycache__/
 *.pyc
 
+# 로그 파일
+*.log
+logs/
+
 # 크롤링 결과 산출물 (로컬 테스트용 JSON)
 crawled_*.json
+
+# 임시 디버그 스크립트
+check_ranks.py
 
 # Claude Code 로컬 설정 (메모리 폴더만 git 추적)
 .claude/*
