@@ -11,6 +11,8 @@ import os
 import uuid
 from datetime import datetime, timezone
 
+from pathlib import Path
+
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
@@ -20,8 +22,8 @@ from logger import get_logger
 from pages import COLLECTIONS, FOOD_CATEGORIES, build_url
 from parsers import kurly, kurly_detail
 
-# 로컬 개발 중에는 .env 파일에서, k8s에서는 ConfigMap/Secret으로 주입된 환경변수를 그대로 사용한다
-load_dotenv()
+# 로컬 개발 중에는 프로젝트 루트의 .env에서, k8s에서는 ConfigMap/Secret으로 주입된 환경변수를 그대로 사용한다
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

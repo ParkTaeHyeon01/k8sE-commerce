@@ -3,11 +3,12 @@
 #       trace_id로 로깅하며 MongoDB products 컬렉션에 upsert
 import json
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 # mongo_loader가 모듈 로드 시점에 환경변수를 읽으므로, 그보다 먼저 .env를 적용해야 한다
-load_dotenv()
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 from confluent_kafka import Consumer
 

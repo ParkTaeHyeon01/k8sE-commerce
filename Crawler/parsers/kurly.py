@@ -13,6 +13,25 @@ _PERCENT_PATTERN = re.compile(r"^(\d{1,3})%$")
 _GOODS_ID_PATTERN = re.compile(r"/goods/(\d+)")
 
 
+async def _get_card_image_url(card) -> str | None:
+    """상품 카드의 실제 이미지 URL을 반환한다.
+
+    lazy load JS는 HTML 속성(src attribute)은 SVG 그대로 두고
+    DOM 프로퍼티(img.src)만 실제 URL로 교체한다.
+    get_attribute()는 속성을 읽으므로 evaluate()로 프로퍼티를 직접 읽는다.
+
+    페이지 하단 카드는 스크롤 직후라 이미지가 아직 로드 중일 수 있다.
+    빈 값이면 뷰포트 안으로 스크롤한 뒤 500ms 대기 후 한 번 더 시도한다.
+    """
+    img = card.locator("img").first
+    src = await img.evaluate("el => el.src") or ""
+    if not src or src.startswith("data:"):
+        await img.scroll_into_view_if_needed()
+        await img.page.wait_for_timeout(500)
+        src = await img.evaluate("el => el.src") or ""
+    return src if src and not src.startswith("data:") else None
+
+
 async def extract_raw_items(page) -> list[dict]:
     """페이지에서 후보 항목들의 원본 정보(텍스트/상세링크/이미지)를 가져온다."""
     locator = page.locator(ITEM_SELECTOR)
@@ -24,8 +43,7 @@ async def extract_raw_items(page) -> list[dict]:
             "text": await card.inner_text(),
             # 카드를 감싸는 링크가 상세페이지 주소다 (/goods/{product_id})
             "href": await card.locator("a").first.get_attribute("href"),
-            # 카드의 첫 번째 이미지가 상품 이미지, 두 번째는 혜택 뱃지 스티커다
-            "image_url": await card.locator("img").first.get_attribute("src"),
+            "image_url": await _get_card_image_url(card),
         })
     return raw_items
 
