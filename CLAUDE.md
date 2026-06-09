@@ -9,6 +9,12 @@
 ## 모델
 - 기본: Sonnet / 단순 작업: Haiku / Opus 사용 안 함
 
+## 메모리
+- 프로젝트 메모리는 `.claude/memory/` 폴더에 저장한다 (git으로 동기화됨)
+- 대화 시작 시 `.claude/memory/MEMORY.md`를 읽어 컨텍스트를 파악한다
+- 메모리 저장 시 `.claude/memory/`에 쓰고, `~/.claude/projects/.../memory/`에도 동일하게 저장한다
+- 환경 이동(강의실↔집) 후에는 `git pull`로 최신 메모리를 동기화한다
+
 ## Observability
 - 로그는 Python `logging` 모듈 사용 (외부 라이브러리 최소화)
 - 트레이스 ID를 요청마다 생성하여 크롤러 → Kafka → 백엔드까지 같은 ID로 추적

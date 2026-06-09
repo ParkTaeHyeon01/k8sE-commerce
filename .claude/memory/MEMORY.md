@@ -1,0 +1,13 @@
+- [프로젝트 범위와 담당 영역](project_scope_and_role.md) — k8s CI/CD 시연 중심 프로젝트, 사용자는 개발+data(DB/Kafka/Redis/crawling) 담당
+- [아키텍처 결정사항](architecture_decisions.md) — MSA+gRPC, Google OAuth 1개, 회원가입시 포인트 지급/차감으로 결제 대체
+- [워크북 친화적 작업](feedback_workbook_friendly.md) — 산출물(워크북)과 팀원이 따라하기 쉬운 구조를 항상 염두에 둘 것
+- [개발환경과 배포](dev_environment_and_deploy.md) — 로컬에 Kafka(C:\kafka)+MongoDB(WSL2) 직접 설치해 e2e 테스트 운영 중. 이미지 빌드는 기능구현 완료 후
+- [디렉터리 영역 침범 금지](feedback_stay_within_directory_scope.md) — 작업 중 다른 서비스 영역 코드 생성 금지 (예: 크롤러 작업 중 백엔드에 Kafka consumer 생성)
+- [크롤링 대상: 마켓컬리](crawler_target_kurly.md) — G마켓→Kurly로 변경(커밋 d0afa30). URL 패턴, category 필터, 식품 카테고리 코드 정리
+- [크롤러 다중 운영 계획](crawler_multi_instance_plan.md) — 베스트/할인을 환경변수(CRAWL_TARGET) 기반 단일 코드로 분리 (구현완료, 커밋 e91f4b8), k8s CronJob 2개로 운영 예정
+- [크롤링→Kafka 파이프라인 진행상황](crawler_kafka_pipeline_progress.md) — 파이프라인+UI+인기순정렬+카테고리동적화+전통주오염수정 완료. 미커밋 상태, git push 필요
+- [부하테스트 시나리오 후보](loadtest_scenario_candidates.md) — k6 데모용 트래픽 쏠림 시나리오 (할인 이벤트 오픈, 포인트 차감 동시요청 등)
+- [메모리 선제적 관리](feedback_proactive_memory_upkeep.md) — 요청 없이도 결정/변경 생길 때마다 즉시 메모리 점검·갱신할 것 (환경 이동 잦음)
+- [강의실/집 동기화 루틴](dual_environment_sync_workflow.md) — hi(강의실)/User(집) 계정 오가며 메모리 폴더 수동 복사+git 동기화. 경로 다른 건 정상
+- [MongoDB products 스키마](mongodb_products_schema.md) — product_id 키, targets 배열, status(draft/ready)로 노출 제어, 상세 이미지는 URL 배열 (설계 완료, 구현 전)
+- [최신 스택 + 공식문서 우선](feedback_use_latest_stack_and_official_docs.md) — 버전/설정은 항상 검색으로 최신 확인 후 공식 문서 기준으로 안내 (학습데이터 컷오프 이후 변화 큼, 예: Kafka 4.x는 KRaft 전용)
