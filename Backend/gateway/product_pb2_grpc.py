@@ -44,6 +44,11 @@ class ProductServiceStub:
                 request_serializer=product__pb2.GetProductRequest.SerializeToString,
                 response_deserializer=product__pb2.GetProductResponse.FromString,
                 _registered_method=True)
+        self.ListCategories = channel.unary_unary(
+                '/product.ProductService/ListCategories',
+                request_serializer=product__pb2.ListCategoriesRequest.SerializeToString,
+                response_deserializer=product__pb2.ListCategoriesResponse.FromString,
+                _registered_method=True)
 
 
 class ProductServiceServicer:
@@ -63,6 +68,13 @@ class ProductServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListCategories(self, request, context):
+        """카테고리 목록 조회 (category_crawler가 수집한 목록 반환)
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ProductServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -75,6 +87,11 @@ def add_ProductServiceServicer_to_server(servicer, server):
                     servicer.GetProduct,
                     request_deserializer=product__pb2.GetProductRequest.FromString,
                     response_serializer=product__pb2.GetProductResponse.SerializeToString,
+            ),
+            'ListCategories': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListCategories,
+                    request_deserializer=product__pb2.ListCategoriesRequest.FromString,
+                    response_serializer=product__pb2.ListCategoriesResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -131,6 +148,33 @@ class ProductService:
             '/product.ProductService/GetProduct',
             product__pb2.GetProductRequest.SerializeToString,
             product__pb2.GetProductResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListCategories(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/product.ProductService/ListCategories',
+            product__pb2.ListCategoriesRequest.SerializeToString,
+            product__pb2.ListCategoriesResponse.FromString,
             options,
             channel_credentials,
             insecure,

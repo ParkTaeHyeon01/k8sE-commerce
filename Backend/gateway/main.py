@@ -10,7 +10,7 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import products
+from routers import categories, products
 
 app = FastAPI(title="k8sE-commerce Gateway")
 
@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(products.router, prefix="/products", tags=["products"])
+app.include_router(categories.router, prefix="/categories", tags=["categories"])
 
 
 @app.get("/health")

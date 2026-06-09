@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rproduct.proto\x12\x07product\"]\n\x13ListProductsRequest\x12\x0e\n\x06target\x18\x01 \x01(\t\x12\x15\n\rcategory_code\x18\x02 \x01(\t\x12\x0c\n\x04page\x18\x03 \x01(\x05\x12\x11\n\tpage_size\x18\x04 \x01(\x05\"q\n\x14ListProductsResponse\x12)\n\x08products\x18\x01 \x03(\x0b\x32\x17.product.ProductSummary\x12\r\n\x05total\x18\x02 \x01(\x05\x12\x0c\n\x04page\x18\x03 \x01(\x05\x12\x11\n\tpage_size\x18\x04 \x01(\x05\"\'\n\x11GetProductRequest\x12\x12\n\nproduct_id\x18\x01 \x01(\t\"L\n\x12GetProductResponse\x12\'\n\x07product\x18\x01 \x01(\x0b\x32\x16.product.ProductDetail\x12\r\n\x05\x66ound\x18\x02 \x01(\x08\"\xde\x01\n\x0eProductSummary\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\nsale_price\x18\x03 \x01(\x05\x12\x16\n\x0eoriginal_price\x18\x04 \x01(\x05\x12\x15\n\rdiscount_rate\x18\x05 \x01(\x05\x12\x11\n\timage_url\x18\x06 \x01(\t\x12\x15\n\rcategory_code\x18\x07 \x01(\t\x12\x15\n\rcategory_name\x18\x08 \x01(\t\x12\x0f\n\x07targets\x18\t \x03(\t\x12\x15\n\rdelivery_info\x18\n \x01(\t\"*\n\x0b\x44\x65tailBlock\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\xc2\x02\n\rProductDetail\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\nsale_price\x18\x03 \x01(\x05\x12\x16\n\x0eoriginal_price\x18\x04 \x01(\x05\x12\x15\n\rdiscount_rate\x18\x05 \x01(\x05\x12\x11\n\timage_url\x18\x06 \x01(\t\x12\x12\n\ndetail_url\x18\x07 \x01(\t\x12\x15\n\rcategory_code\x18\x08 \x01(\t\x12\x15\n\rcategory_name\x18\t \x01(\t\x12\x0f\n\x07targets\x18\n \x03(\t\x12\x15\n\rdelivery_info\x18\x0b \x01(\t\x12+\n\rdetail_blocks\x18\x0c \x03(\x0b\x32\x14.product.DetailBlock\x12\x0e\n\x06status\x18\r \x01(\t\x12\x12\n\ncrawled_at\x18\x0e \x01(\t2\xa4\x01\n\x0eProductService\x12K\n\x0cListProducts\x12\x1c.product.ListProductsRequest\x1a\x1d.product.ListProductsResponse\x12\x45\n\nGetProduct\x12\x1a.product.GetProductRequest\x1a\x1b.product.GetProductResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rproduct.proto\x12\x07product\"n\n\x13ListProductsRequest\x12\x0e\n\x06target\x18\x01 \x01(\t\x12\x15\n\rcategory_code\x18\x02 \x01(\t\x12\x0c\n\x04page\x18\x03 \x01(\x05\x12\x11\n\tpage_size\x18\x04 \x01(\x05\x12\x0f\n\x07sort_by\x18\x05 \x01(\t\"q\n\x14ListProductsResponse\x12)\n\x08products\x18\x01 \x03(\x0b\x32\x17.product.ProductSummary\x12\r\n\x05total\x18\x02 \x01(\x05\x12\x0c\n\x04page\x18\x03 \x01(\x05\x12\x11\n\tpage_size\x18\x04 \x01(\x05\"\'\n\x11GetProductRequest\x12\x12\n\nproduct_id\x18\x01 \x01(\t\"L\n\x12GetProductResponse\x12\'\n\x07product\x18\x01 \x01(\x0b\x32\x16.product.ProductDetail\x12\r\n\x05\x66ound\x18\x02 \x01(\x08\"5\n\x08\x43\x61tegory\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05\x63ount\x18\x03 \x01(\x05\"\'\n\x15ListCategoriesRequest\x12\x0e\n\x06target\x18\x01 \x01(\t\"?\n\x16ListCategoriesResponse\x12%\n\ncategories\x18\x01 \x03(\x0b\x32\x11.product.Category\"\xde\x01\n\x0eProductSummary\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\nsale_price\x18\x03 \x01(\x05\x12\x16\n\x0eoriginal_price\x18\x04 \x01(\x05\x12\x15\n\rdiscount_rate\x18\x05 \x01(\x05\x12\x11\n\timage_url\x18\x06 \x01(\t\x12\x15\n\rcategory_code\x18\x07 \x01(\t\x12\x15\n\rcategory_name\x18\x08 \x01(\t\x12\x0f\n\x07targets\x18\t \x03(\t\x12\x15\n\rdelivery_info\x18\n \x01(\t\"*\n\x0b\x44\x65tailBlock\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\xc2\x02\n\rProductDetail\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\nsale_price\x18\x03 \x01(\x05\x12\x16\n\x0eoriginal_price\x18\x04 \x01(\x05\x12\x15\n\rdiscount_rate\x18\x05 \x01(\x05\x12\x11\n\timage_url\x18\x06 \x01(\t\x12\x12\n\ndetail_url\x18\x07 \x01(\t\x12\x15\n\rcategory_code\x18\x08 \x01(\t\x12\x15\n\rcategory_name\x18\t \x01(\t\x12\x0f\n\x07targets\x18\n \x03(\t\x12\x15\n\rdelivery_info\x18\x0b \x01(\t\x12+\n\rdetail_blocks\x18\x0c \x03(\x0b\x32\x14.product.DetailBlock\x12\x0e\n\x06status\x18\r \x01(\t\x12\x12\n\ncrawled_at\x18\x0e \x01(\t2\xf7\x01\n\x0eProductService\x12K\n\x0cListProducts\x12\x1c.product.ListProductsRequest\x1a\x1d.product.ListProductsResponse\x12\x45\n\nGetProduct\x12\x1a.product.GetProductRequest\x1a\x1b.product.GetProductResponse\x12Q\n\x0eListCategories\x12\x1e.product.ListCategoriesRequest\x1a\x1f.product.ListCategoriesResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,19 +32,25 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'product_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_LISTPRODUCTSREQUEST']._serialized_start=26
-  _globals['_LISTPRODUCTSREQUEST']._serialized_end=119
-  _globals['_LISTPRODUCTSRESPONSE']._serialized_start=121
-  _globals['_LISTPRODUCTSRESPONSE']._serialized_end=234
-  _globals['_GETPRODUCTREQUEST']._serialized_start=236
-  _globals['_GETPRODUCTREQUEST']._serialized_end=275
-  _globals['_GETPRODUCTRESPONSE']._serialized_start=277
-  _globals['_GETPRODUCTRESPONSE']._serialized_end=353
-  _globals['_PRODUCTSUMMARY']._serialized_start=356
-  _globals['_PRODUCTSUMMARY']._serialized_end=578
-  _globals['_DETAILBLOCK']._serialized_start=580
-  _globals['_DETAILBLOCK']._serialized_end=622
-  _globals['_PRODUCTDETAIL']._serialized_start=625
-  _globals['_PRODUCTDETAIL']._serialized_end=947
-  _globals['_PRODUCTSERVICE']._serialized_start=950
-  _globals['_PRODUCTSERVICE']._serialized_end=1114
+  _globals['_LISTPRODUCTSREQUEST']._serialized_end=136
+  _globals['_LISTPRODUCTSRESPONSE']._serialized_start=138
+  _globals['_LISTPRODUCTSRESPONSE']._serialized_end=251
+  _globals['_GETPRODUCTREQUEST']._serialized_start=253
+  _globals['_GETPRODUCTREQUEST']._serialized_end=292
+  _globals['_GETPRODUCTRESPONSE']._serialized_start=294
+  _globals['_GETPRODUCTRESPONSE']._serialized_end=370
+  _globals['_CATEGORY']._serialized_start=372
+  _globals['_CATEGORY']._serialized_end=425
+  _globals['_LISTCATEGORIESREQUEST']._serialized_start=427
+  _globals['_LISTCATEGORIESREQUEST']._serialized_end=466
+  _globals['_LISTCATEGORIESRESPONSE']._serialized_start=468
+  _globals['_LISTCATEGORIESRESPONSE']._serialized_end=531
+  _globals['_PRODUCTSUMMARY']._serialized_start=534
+  _globals['_PRODUCTSUMMARY']._serialized_end=756
+  _globals['_DETAILBLOCK']._serialized_start=758
+  _globals['_DETAILBLOCK']._serialized_end=800
+  _globals['_PRODUCTDETAIL']._serialized_start=803
+  _globals['_PRODUCTDETAIL']._serialized_end=1125
+  _globals['_PRODUCTSERVICE']._serialized_start=1128
+  _globals['_PRODUCTSERVICE']._serialized_end=1375
 # @@protoc_insertion_point(module_scope)

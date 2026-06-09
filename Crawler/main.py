@@ -19,7 +19,7 @@ from playwright_stealth import Stealth
 
 import kafka_producer
 from logger import get_logger
-from pages import COLLECTIONS, FOOD_CATEGORIES, build_url
+from pages import COLLECTIONS, FOOD_CATEGORIES, SALES_FOOD_CATEGORIES, build_url
 from parsers import kurly, kurly_detail
 
 # 로컬 개발 중에는 프로젝트 루트의 .env에서, k8s에서는 ConfigMap/Secret으로 주입된 환경변수를 그대로 사용한다
@@ -103,7 +103,9 @@ async def run() -> None:
         raise ValueError(f"알 수 없는 CRAWL_TARGET 값: {CRAWL_TARGET} (best 또는 sales만 가능)")
 
     label = COLLECTIONS[CRAWL_TARGET]["label"]
-    logger.info(f"크롤링 작업 시작 - 대상: {label}, 카테고리 {len(FOOD_CATEGORIES)}개")
+    # 세일 페이지에는 전통주(251) 카테고리가 없어서 target에 따라 카테고리 목록을 분리한다
+    categories = SALES_FOOD_CATEGORIES if CRAWL_TARGET == "sales" else FOOD_CATEGORIES
+    logger.info(f"크롤링 작업 시작 - 대상: {label}, 카테고리 {len(categories)}개")
 
     producer = kafka_producer.create_producer()
     sent_count = 0
@@ -117,7 +119,7 @@ async def run() -> None:
         context = await browser.new_context(user_agent=USER_AGENT, locale="ko-KR")
         page = await context.new_page()
 
-        for category_code, category_name in FOOD_CATEGORIES.items():
+        for category_code, category_name in categories.items():
             url = build_url(CRAWL_TARGET, category_code)
             try:
                 products = await crawl_category_list(page, logger, label, category_name, url)
@@ -131,8 +133,9 @@ async def run() -> None:
                 "category_code": category_code,
                 "category_name": category_name,
             }
-            for product in products:
-                await process_product(page, logger, producer, trace_id, crawled_at, category_context, product)
+            for rank, product in enumerate(products, start=1):
+                await process_product(page, logger, producer, trace_id, crawled_at,
+                                      {**category_context, "rank": rank}, product)
                 sent_count += 1
                 seen_product_ids.append(product["product_id"])
 

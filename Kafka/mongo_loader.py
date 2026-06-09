@@ -13,12 +13,16 @@ _MONGODB_URI = os.environ["MONGODB_URI"]
 _MONGODB_DB = os.environ.get("MONGODB_DB", "ecommerce")
 _COLLECTION_NAME = "products"
 
-# 메시지에서 그대로 옮겨 담을 필드들 (targets/updated_at은 별도 처리)
-_FIELDS = (
-    "category_code", "category_name", "name",
-    "original_price", "sale_price", "discount_rate", "delivery_info",
+# 매번 최신값으로 덮어써야 하는 필드
+_SET_FIELDS = (
+    "name", "original_price", "sale_price", "discount_rate", "delivery_info",
     "image_url", "detail_url", "detail_blocks",
     "status", "trace_id", "crawled_at",
+)
+# 최초 수집 시에만 저장 — 이후 덮어쓰지 않음
+# (같은 상품이 다른 카테고리 번들로 재크롤링되어도 원래 카테고리 유지)
+_SET_ON_INSERT_FIELDS = (
+    "category_code", "category_name",
 )
 
 
@@ -32,15 +36,22 @@ def upsert_product(collection, product: dict) -> None:
     """상품 데이터 하나를 product_id 기준으로 upsert한다.
 
     - targets는 $addToSet으로 누적 (베스트/할인 양쪽에 등장해도 사라지지 않게)
-    - status는 메시지의 값을 그대로 반영 (draft -> ready 전환은 크롤러가 결정)
+    - category_code/category_name은 $setOnInsert — 최초 수집 카테고리 유지
+      (다른 카테고리 번들로 재크롤링되어도 덮어쓰지 않음)
     """
-    fields = {key: product[key] for key in _FIELDS if key in product}
-    fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+    set_fields = {key: product[key] for key in _SET_FIELDS if key in product}
+    set_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+    # 인기순 정렬용 — target별 크롤 순위 저장 (best_rank / sales_rank)
+    if "rank" in product:
+        set_fields[f"{product['target']}_rank"] = product["rank"]
+
+    set_on_insert = {key: product[key] for key in _SET_ON_INSERT_FIELDS if key in product}
 
     collection.update_one(
         {"product_id": product["product_id"]},
         {
-            "$set": fields,
+            "$set": set_fields,
+            "$setOnInsert": set_on_insert,
             "$addToSet": {"targets": product["target"]},
         },
         upsert=True,

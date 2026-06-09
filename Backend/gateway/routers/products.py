@@ -15,6 +15,7 @@ def list_products(
     category_code: str = Query(default=""),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    sort_by: str = Query(default="", description="rank | price_asc | price_desc | discount_desc"),
 ):
     stub = get_product_stub()
     resp = stub.ListProducts(product_pb2.ListProductsRequest(
@@ -22,6 +23,7 @@ def list_products(
         category_code=category_code,
         page=page,
         page_size=page_size,
+        sort_by=sort_by,
     ))
     return MessageToDict(resp, preserving_proto_field_name=True)
 

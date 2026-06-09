@@ -1,25 +1,40 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchCategories } from "../api";
 
-const CATEGORIES = [
-  { icon: "🥦", name: "채소",             code: "907" },
-  { icon: "🍎", name: "과일·견과·쌀",     code: "908" },
-  { icon: "🐟", name: "수산·해산·건어물", code: "909" },
-  { icon: "🥩", name: "정육·가공육·달걀", code: "910" },
-  { icon: "🥘", name: "국·반찬·메인요리", code: "911" },
-  { icon: "🍱", name: "간편식·밀키트",    code: "912" },
-  { icon: "🍜", name: "면·양념·오일",     code: "913" },
-  { icon: "🧃", name: "생수·음료",        code: "914" },
-  { icon: "☕", name: "커피·차",          code: "383" },
-  { icon: "🍪", name: "간식·과자·떡",    code: "249" },
-  { icon: "🍞", name: "베이커리",         code: "915" },
-  { icon: "🧀", name: "유제품",           code: "018" },
-  { icon: "🥗", name: "건강식품",         code: "032" },
-  { icon: "🍷", name: "와인·위스키",      code: "722" },
-  { icon: "🍶", name: "전통주",           code: "251" },
+// 카테고리 코드별 아이콘 — API에서 이름은 받아오고 아이콘은 여기서 매핑
+const ICON_MAP = {
+  "907": "🥦", "908": "🍎", "909": "🐟", "910": "🥩",
+  "911": "🥘", "912": "🍱", "913": "🍜", "914": "🧃",
+  "383": "☕", "249": "🍪", "915": "🍞", "018": "🧀",
+  "032": "🥗", "722": "🍷", "251": "🍶",
+};
+const DEFAULT_ICON = "🛒";
+
+// API 실패 시 표시할 폴백 목록
+const FALLBACK_CATEGORIES = [
+  { code: "907", name: "채소" }, { code: "908", name: "과일·견과·쌀" },
+  { code: "909", name: "수산·해산·건어물" }, { code: "910", name: "정육·가공육·달걀" },
+  { code: "911", name: "국·반찬·메인요리" }, { code: "912", name: "간편식·밀키트·샐러드" },
+  { code: "913", name: "면·양념·오일" }, { code: "914", name: "생수·음료" },
+  { code: "383", name: "커피·차" }, { code: "249", name: "간식·과자·떡" },
+  { code: "915", name: "베이커리" }, { code: "018", name: "유제품" },
+  { code: "032", name: "건강식품" }, { code: "722", name: "와인·위스키·데낄라" },
+  { code: "251", name: "전통주" },
 ];
 
 export default function Home() {
   const navigate = useNavigate();
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
+
+  useEffect(() => {
+    fetchCategories("best")
+      .then((data) => {
+        const cats = data.categories ?? [];
+        if (cats.length > 0) setCategories(cats);
+      })
+      .catch(() => {}); // 실패 시 폴백 유지
+  }, []);
 
   return (
     <div className="home">
@@ -50,14 +65,14 @@ export default function Home() {
             <button className="section-more" onClick={() => navigate("/products")}>전체 상품 보기 →</button>
           </div>
           <div className="category-grid">
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <div
-                key={c.name}
+                key={c.code}
                 className="category-card"
                 onClick={() => navigate(`/products?category=${c.code}`)}
               >
                 <div className="category-icon-wrap">
-                  <span className="category-icon">{c.icon}</span>
+                  <span className="category-icon">{ICON_MAP[c.code] ?? DEFAULT_ICON}</span>
                 </div>
                 <span className="category-name">{c.name}</span>
               </div>

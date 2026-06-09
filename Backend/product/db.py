@@ -39,6 +39,13 @@ def get_collection():
     return _mongo_client[_MONGODB_DB]["products"]
 
 
+def get_categories_collection():
+    global _mongo_client
+    if _mongo_client is None:
+        _mongo_client = MongoClient(_MONGODB_URI)
+    return _mongo_client[_MONGODB_DB]["categories"]
+
+
 def get_redis() -> redis.Redis:
     global _redis_client
     if _redis_client is None:

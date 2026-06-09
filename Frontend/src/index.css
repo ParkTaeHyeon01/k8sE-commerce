@@ -121,11 +121,18 @@ button { font-family: inherit; cursor: pointer; }
 .main-content { flex: 1; min-width: 0; }
 
 .result-bar {
-  display: flex; align-items: center;
+  display: flex; align-items: center; justify-content: space-between;
   padding-bottom: 16px;
 }
 .result-count { font-size: 0.95rem; color: var(--text-sub); }
 .result-count b { color: var(--text); }
+.sort-select {
+  padding: 8px 14px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--white);
+  font-size: 0.9rem; color: var(--text); cursor: pointer;
+  font-family: inherit; transition: border-color .15s;
+}
+.sort-select:hover, .sort-select:focus { border-color: var(--primary); outline: none; }
 
 /* ───────── 상품 그리드 ───────── */
 .product-grid {

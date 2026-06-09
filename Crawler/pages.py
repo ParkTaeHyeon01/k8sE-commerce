@@ -33,6 +33,10 @@ FOOD_CATEGORIES = {
     "251": "전통주",
 }
 
+# 세일 페이지에는 전통주(251) 카테고리가 없음 — 없는 카테고리로 필터링하면 무시되어
+# 엉뚱한 상품이 전통주 레이블로 저장되는 오염이 발생한다
+SALES_FOOD_CATEGORIES = {k: v for k, v in FOOD_CATEGORIES.items() if k != "251"}
+
 
 def build_url(target: str, category_code: str) -> str:
     """선택된 컬렉션(베스트/할인) 기본 URL에 카테고리 필터를 붙여 URL을 만든다."""
