@@ -10,10 +10,13 @@ from dotenv import load_dotenv
 # mongo_loader가 모듈 로드 시점에 환경변수를 읽으므로, 그보다 먼저 .env를 적용해야 한다
 load_dotenv(Path(__file__).parent.parent / ".env")
 
+import redis
 from confluent_kafka import Consumer
 
 from logger import get_logger
 from mongo_loader import get_collection, sync_targets, upsert_product
+
+_REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 _BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 _TOPIC = os.environ.get("KAFKA_PRODUCT_TOPIC", "crawled-products")
@@ -25,6 +28,20 @@ _CONSUMER_CONFIG = {
     "group.id": _GROUP_ID,
     "auto.offset.reset": "earliest",
 }
+
+
+def flush_product_cache(logger) -> None:
+    """배치 완료 후 product 서버의 목록 캐시를 무효화한다."""
+    try:
+        r = redis.from_url(_REDIS_URL, decode_responses=True, socket_connect_timeout=1)
+        keys = r.keys("list:*")
+        if keys:
+            r.delete(*keys)
+            logger.info(f"Redis 캐시 무효화 완료 - {len(keys)}개 키 삭제")
+        else:
+            logger.info("Redis 캐시 무효화 - 삭제할 키 없음")
+    except Exception as e:
+        logger.error(f"Redis 캐시 무효화 실패 (무시하고 계속): {e}")
 
 
 def handle_message(collection, logger_factory, raw_value: bytes) -> None:
@@ -46,6 +63,8 @@ def handle_message(collection, logger_factory, raw_value: bytes) -> None:
             f"정리(sync) 완료 - target={target} "
             f"확인된 상품 {len(product_ids)}건, target 제거된 상품 {removed}건"
         )
+        # 배치 완료 신호 → Redis 목록 캐시 무효화
+        flush_product_cache(logger)
         return
 
     product = message

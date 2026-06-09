@@ -25,32 +25,39 @@ export default function ProductDetail() {
       <button className="back-btn" onClick={() => navigate(-1)}>← 목록으로</button>
 
       <div className="detail-top">
-        <img src={product.image_url} alt={product.name} />
+        <img className="detail-img" src={product.image_url} alt={product.name} />
         <div className="detail-info">
-          <p className="category">{product.category_name}</p>
+          {product.category_name && (
+            <span className="cat-tag">{product.category_name}</span>
+          )}
           <h2>{product.name}</h2>
-          <div>
+          <div className="price-block">
             {product.discount_rate > 0 && (
-              <span className="discount-rate">{product.discount_rate}%</span>
+              <span className="discount-badge">{product.discount_rate}%</span>
             )}
             <span className="sale-price-big">{product.sale_price?.toLocaleString()}원</span>
           </div>
           {product.original_price > 0 && product.original_price !== product.sale_price && (
-            <p className="original-price">{product.original_price?.toLocaleString()}원</p>
+            <p className="original-price-line">정가 {product.original_price?.toLocaleString()}원</p>
           )}
           {product.delivery_info && (
-            <span className="delivery-badge">{product.delivery_info}</span>
+            <span className="delivery-tag">🚚 {product.delivery_info}</span>
           )}
         </div>
       </div>
 
-      {product.detail_blocks?.length > 0 && (
+      {(product.detail_blocks ?? []).length > 0 && (
         <div className="detail-blocks">
-          {product.detail_blocks.map((block, i) =>
-            block.type === "image"
-              ? <img key={i} src={block.value} alt="" loading="lazy" />
-              : <p key={i}>{block.value}</p>
-          )}
+          <div className="detail-blocks-header">상품 상세정보</div>
+          <div className="detail-blocks-body">
+            {(product.detail_blocks ?? []).map((block, i) =>
+              block.type === "image"
+                ? <img key={i} src={block.value} alt="" loading="lazy" />
+                : block.type === "li"
+                  ? <li key={i}>{block.value}</li>
+                  : <p key={i}>{block.value}</p>
+            )}
+          </div>
         </div>
       )}
     </div>

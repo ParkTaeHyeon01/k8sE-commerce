@@ -53,12 +53,20 @@ async def crawl_category_list(page, logger, label: str, category_name: str, url:
 async def fill_detail(page, product: dict) -> None:
     """상품 상세페이지를 방문해 상세이미지를 채운다 (실패 시 호출 측에서 처리하도록 예외를 그대로 던진다)."""
     await page.goto(product["detail_url"], wait_until="domcontentloaded", timeout=50000)
-    await page.wait_for_timeout(1500)
+    await page.wait_for_timeout(2000)
 
-    # 상세 설명 영역(#description)은 지연 로딩되므로 스크롤로 불러온 뒤 추출한다
-    for _ in range(4):
-        await page.mouse.wheel(0, 2500)
-        await page.wait_for_timeout(600)
+    # 천천히 아래로 스크롤해 Intersection Observer를 구간별로 트리거
+    for _ in range(12):
+        await page.mouse.wheel(0, 1500)
+        await page.wait_for_timeout(400)
+
+    # data-src 속성이 있는 이미지를 강제로 src에 복사 — lazy load 우회
+    await page.evaluate("""
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            img.src = img.getAttribute('data-src');
+        });
+    """)
+    await page.wait_for_timeout(1000)
 
     detail = await kurly_detail.parse_detail(page)
     product["detail_blocks"] = detail["detail_blocks"]

@@ -67,19 +67,29 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
                 page_size=page_size,
             )
 
+        # detail_blocks 필터 제거 — status:"ready" 가 이미 보장함 (인덱스 풀활용)
         query: dict = {"status": "ready"}
         if target:
             query["targets"] = target
         if cat_code:
             query["category_code"] = cat_code
 
+        # count + find 를 $facet 한 번으로 합쳐 MongoDB 왕복 1회 절감
         col = get_collection()
-        total = col.count_documents(query)
-        docs  = list(
-            col.find(query, {"_id": 0})
-               .skip((page - 1) * page_size)
-               .limit(page_size)
-        )
+        result = list(col.aggregate([
+            {"$match": query},
+            {"$project": {"detail_blocks": 0}},  # 큰 필드를 facet 전에 제거
+            {"$facet": {
+                "total":    [{"$count": "n"}],
+                "products": [
+                    {"$skip": (page - 1) * page_size},
+                    {"$limit": page_size},
+                    {"$project": {"_id": 0}},
+                ],
+            }},
+        ]))
+        total = result[0]["total"][0]["n"] if result and result[0]["total"] else 0
+        docs  = result[0]["products"] if result else []
 
         cache_set(cache_key, {"products": docs, "total": total})
         _log.info(f"목록 조회 - target={target} cat={cat_code} page={page} total={total}")

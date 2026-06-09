@@ -1,55 +1,62 @@
 # 마켓컬리 상품 상세페이지 파서
-# 상세 설명 영역(#description)은 이미지와 본문 텍스트(소개/보관법/조리법 등)가
-# 순서대로 섞여 있다. 원본의 "이미지-텍스트가 번갈아 나오는 구성"을 그대로
-# 재현할 수 있도록, 등장 순서를 보존한 블록 배열로 추출한다.
-# #description 안에는 실제 본문(.goods_wrap) 외에도 상품고시정보, 추천 상품
-# 캐러셀 등이 같은 태그(h3/p)로 섞여 있어, 본문 컨테이너로 범위를 좁힌다
-DESCRIPTION_SELECTOR = "#description .goods_wrap"
-_BLOCK_SELECTOR = "img, h3, p.words"
+# "상품고시정보" 텍스트가 등장하기 직전까지의 img/텍스트 블록을 순서대로 수집한다.
+# CSS 클래스 의존 없이 DOM 위치 기반으로 잘라내므로 페이지 구조 변경에 강하다.
 
-# "자세히보기 이미지"는 #description 바깥(#detail 바로 아래, 상품고시정보 바로 위)에
-# 별도 컨테이너로 존재하지만 시각적으로는 본문 마지막 이미지다 -> 끝에 추가로 붙인다
-_TRAILING_IMAGE_SELECTOR = '#detail img[alt="자세히보기 이미지"]'
+_EXTRACT_JS = """
+() => {
+    const desc = document.querySelector('#description');
+    if (!desc) return [];
 
+    // "상품고시정보" 텍스트를 가진 첫 번째 요소를 기준점으로 삼는다
+    let cutoff = null;
+    for (const el of desc.querySelectorAll('*')) {
+        if (el.childElementCount === 0 && el.textContent.trim() === '상품고시정보') {
+            cutoff = el;
+            break;
+        }
+    }
 
-async def extract_detail_blocks(page) -> list[dict]:
-    """상세 설명 영역을 등장 순서대로 {type, value} 블록 배열로 추출한다.
+    const TEXT_TAGS = new Set(['H3', 'P', 'LI']);
+    const blocks = [];
+    for (const el of desc.querySelectorAll('img, h3, p, li')) {
+        // cutoff 이후(DOCUMENT_POSITION_FOLLOWING=4)이면 수집 중단
+        if (cutoff && (cutoff.compareDocumentPosition(el) & 4) === 0) break;
 
-    - 이미지: kurly.com 도메인이 아닌 것은 장식용 SVG 아이콘이므로 제외
-    - 텍스트: 비어있는 경우 제외 ("상품설명 및 상품이미지 참조" 같은 placeholder는
-      h3/p.words 밖에 있어 자연스럽게 걸러진다)
-    """
-    # 주의: "A B, C, D"는 CSS에서 (A B), C, D로 해석되어 범위를 벗어난다.
-    # :is()로 묶어야 DESCRIPTION_SELECTOR 하위로 올바르게 범위가 좁혀진다.
-    raw_blocks = await page.locator(f"{DESCRIPTION_SELECTOR} :is({_BLOCK_SELECTOR})").evaluate_all(
-        """els => els.map(e => {
-            if (e.tagName === 'IMG') {
-                return {type: 'image', value: e.getAttribute('src') || e.getAttribute('data-src')};
+        // 텍스트 요소가 같은 종류의 조상 안에 중첩된 경우 중복 방지
+        if (TEXT_TAGS.has(el.tagName)) {
+            let ancestor = el.parentElement;
+            let skip = false;
+            while (ancestor && ancestor !== desc) {
+                if (TEXT_TAGS.has(ancestor.tagName)) { skip = true; break; }
+                ancestor = ancestor.parentElement;
             }
-            return {type: 'text', value: e.innerText.trim()};
-        })"""
-    )
+            if (skip) continue;
+        }
 
-    blocks = []
-    for block in raw_blocks:
-        if block["type"] == "image":
-            if block["value"] and "kurly.com" in block["value"]:
-                blocks.append(block)
-        elif block["value"]:
-            blocks.append(block)
-
-    trailing_sources = await page.locator(_TRAILING_IMAGE_SELECTOR).evaluate_all(
-        "els => els.map(e => e.getAttribute('src') || e.getAttribute('data-src'))"
-    )
-    for src in trailing_sources:
-        if src and "kurly.com" in src:
-            blocks.append({"type": "image", "value": src})
-
-    return blocks
+        if (el.tagName === 'IMG') {
+            // lazy load 속성을 순서대로 시도
+            const src = el.src
+                || el.getAttribute('data-src')
+                || el.getAttribute('data-lazy-src')
+                || el.getAttribute('data-original')
+                || '';
+            if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+                blocks.push({type: 'image', value: src});
+            }
+        } else {
+            const text = el.innerText.trim();
+            // 짧은 UI 레이블(버튼 텍스트 등)은 제외
+            if (text && text.length > 1) {
+                blocks.push({type: 'text', value: text});
+            }
+        }
+    }
+    return blocks;
+}
+"""
 
 
 async def parse_detail(page) -> dict:
-    """상세페이지에서 상세 정보를 추출한다 (호출 전 상세 영역까지 스크롤 필요)."""
-    return {
-        "detail_blocks": await extract_detail_blocks(page),
-    }
+    """#description 내에서 상품고시정보 이전까지의 블록을 추출한다."""
+    blocks = await page.evaluate(_EXTRACT_JS)
+    return {"detail_blocks": blocks}
