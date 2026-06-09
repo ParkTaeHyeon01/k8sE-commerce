@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package product;
+
+service ProductService {
+  // 상품 목록 조회 (카테고리/target 필터, 페이지네이션)
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+  // 상품 상세 조회
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+}
+
+message ListProductsRequest {
+  string target      = 1; // "best" | "sales" | "" (전체)
+  string category_code = 2; // "" = 전체 카테고리
+  int32  page        = 3; // 1-based
+  int32  page_size   = 4; // 기본 20
+}
+
+message ListProductsResponse {
+  repeated ProductSummary products = 1;
+  int32 total   = 2; // 전체 건수 (페이지네이션용)
+  int32 page     = 3;
+  int32 page_size = 4;
+}
+
+message GetProductRequest {
+  string product_id = 1;
+}
+
+message GetProductResponse {
+  ProductDetail product = 1;
+  bool found = 2;
+}
+
+// 목록용 - 카드에 필요한 필드만
+message ProductSummary {
+  string product_id    = 1;
+  string name          = 2;
+  int32  sale_price    = 3;
+  int32  original_price = 4;
+  int32  discount_rate  = 5;
+  string image_url     = 6;
+  string category_code  = 7;
+  string category_name  = 8;
+  repeated string targets = 9;
+  string delivery_info  = 10;
+}
+
+// 상세용 - 전체 필드
+message DetailBlock {
+  string type  = 1; // "image" | "text"
+  string value = 2;
+}
+
+message ProductDetail {
+  string product_id     = 1;
+  string name           = 2;
+  int32  sale_price     = 3;
+  int32  original_price  = 4;
+  int32  discount_rate   = 5;
+  string image_url      = 6;
+  string detail_url     = 7;
+  string category_code   = 8;
+  string category_name   = 9;
+  repeated string targets = 10;
+  string delivery_info   = 11;
+  repeated DetailBlock detail_blocks = 12;
+  string status         = 13;
+  string crawled_at     = 14;
+}
