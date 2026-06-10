@@ -15,3 +15,4 @@
 - [최신 스택 + 공식문서 우선](feedback_use_latest_stack_and_official_docs.md) — 버전/설정은 항상 검색으로 최신 확인 후 공식 문서 기준으로 안내 (학습데이터 컷오프 이후 변화 큼, 예: Kafka 4.x는 KRaft 전용)
 - [auth-member 서비스](auth_member_service.md) — MariaDB 기반 회원/포인트/주문/장바구니/관리자 기능 구현 완료 (포트 50052)
 - [Docker/k8s 배포 준비 현황](docker_k8s_progress.md) — Dockerfile 7개+ConfigMap/Secret 완료, Deployment/Service YAML 미작성, Docker Desktop 미설치
+- [gRPC vs REST 벤치마크](grpc_benchmark.md) — benchmark/ 디렉터리, 실측 결과: 중앙값 4~9배 빠름, 페이로드 2.5배 작음
