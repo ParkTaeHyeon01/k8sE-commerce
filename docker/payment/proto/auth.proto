@@ -1,0 +1,268 @@
+syntax = "proto3";
+
+package auth;
+
+service AuthService {
+  // 인증
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc GetMe(GetMeRequest) returns (GetMeResponse);
+
+  // 포인트
+  rpc GetPoints(GetPointsRequest) returns (GetPointsResponse);
+  rpc SpendPoints(SpendPointsRequest) returns (SpendPointsResponse);
+  rpc RefundPoints(RefundPointsRequest) returns (RefundPointsResponse);
+
+  // 배송지
+  rpc AddAddress(AddAddressRequest) returns (AddAddressResponse);
+  rpc GetAddresses(GetAddressesRequest) returns (GetAddressesResponse);
+  rpc SetDefaultAddress(SetDefaultAddressRequest) returns (SetDefaultAddressResponse);
+  rpc DeleteAddress(DeleteAddressRequest) returns (DeleteAddressResponse);
+
+  // 주문
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  rpc GetOrders(GetOrdersRequest) returns (GetOrdersResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+
+  // 회원 탈퇴
+  rpc WithdrawUser(WithdrawUserRequest) returns (WithdrawUserResponse);
+
+  // 관리자
+  rpc AdminListUsers(AdminListUsersRequest) returns (AdminListUsersResponse);
+  rpc AdminDeleteUser(AdminDeleteUserRequest) returns (AdminDeleteUserResponse);
+  rpc AdminRestoreUser(AdminRestoreUserRequest) returns (AdminRestoreUserResponse);
+  rpc AdminAdjustPoints(AdminAdjustPointsRequest) returns (AdminAdjustPointsResponse);
+  rpc AdminSetAdmin(AdminSetAdminRequest) returns (AdminSetAdminResponse);
+  rpc AdminGetAllOrders(AdminGetAllOrdersRequest) returns (AdminGetAllOrdersResponse);
+}
+
+// ── 인증 ──────────────────────────────────────────────────
+
+message RegisterRequest {
+  string username = 1;
+  string email    = 2;
+  string password = 3;
+}
+message RegisterResponse {
+  bool   success = 1;
+  string message = 2;
+  string token   = 3;
+}
+
+message LoginRequest {
+  string email    = 1;
+  string password = 2;
+}
+message LoginResponse {
+  bool   success = 1;
+  string message = 2;
+  string token   = 3;
+}
+
+message GetMeRequest {
+  int32 user_id = 1;
+}
+message GetMeResponse {
+  int32  id         = 1;
+  string username   = 2;
+  string email      = 3;
+  int32  points     = 4;
+  bool   is_admin   = 5;
+  string created_at = 6;
+}
+
+// ── 포인트 ─────────────────────────────────────────────────
+
+message GetPointsRequest {
+  int32 user_id = 1;
+}
+message GetPointsResponse {
+  int32 points = 1;
+}
+
+message SpendPointsRequest {
+  int32  user_id     = 1;
+  int32  amount      = 2;
+  string description = 3;
+}
+message SpendPointsResponse {
+  bool   success      = 1;
+  string message      = 2;
+  int32  points_after = 3;
+}
+
+message RefundPointsRequest {
+  int32  user_id     = 1;
+  int32  amount      = 2;
+  string description = 3;
+}
+message RefundPointsResponse {
+  bool  success      = 1;
+  int32 points_after = 2;
+}
+
+// ── 배송지 ─────────────────────────────────────────────────
+
+message Address {
+  int32  id             = 1;
+  string recipient      = 2;
+  string phone          = 3;
+  string zipcode        = 4;
+  string address        = 5;
+  string address_detail = 6;
+  bool   is_default     = 7;
+}
+
+message AddAddressRequest {
+  int32  user_id        = 1;
+  string recipient      = 2;
+  string phone          = 3;
+  string zipcode        = 4;
+  string address        = 5;
+  string address_detail = 6;
+}
+message AddAddressResponse {
+  bool  success    = 1;
+  int32 address_id = 2;
+}
+
+message GetAddressesRequest {
+  int32 user_id = 1;
+}
+message GetAddressesResponse {
+  repeated Address addresses = 1;
+}
+
+message SetDefaultAddressRequest {
+  int32 user_id    = 1;
+  int32 address_id = 2;
+}
+message SetDefaultAddressResponse {
+  bool success = 1;
+}
+
+message DeleteAddressRequest {
+  int32 user_id    = 1;
+  int32 address_id = 2;
+}
+message DeleteAddressResponse {
+  bool success = 1;
+}
+
+// ── 주문 ──────────────────────────────────────────────────
+
+message Order {
+  int32  id               = 1;
+  int32  user_id          = 2;
+  string product_id       = 3;
+  string product_name     = 4;
+  string product_image    = 5;
+  int32  quantity         = 6;
+  int32  unit_price       = 7;
+  int32  total_price      = 8;
+  string status           = 9;
+  string created_at       = 10;
+  string shipping_address = 11;
+}
+
+message CreateOrderRequest {
+  int32  user_id          = 1;
+  string product_id       = 2;
+  string product_name     = 3;
+  string product_image    = 4;
+  int32  quantity         = 5;
+  int32  unit_price       = 6;
+  int32  total_price      = 7;
+  string shipping_address = 8;
+}
+message CreateOrderResponse {
+  bool  success  = 1;
+  int32 order_id = 2;
+}
+
+message GetOrdersRequest {
+  int32 user_id = 1;
+}
+message GetOrdersResponse {
+  repeated Order orders = 1;
+}
+
+message CancelOrderRequest {
+  int32 order_id = 1;
+  int32 user_id  = 2;
+}
+message CancelOrderResponse {
+  bool   success      = 1;
+  string message      = 2;
+  int32  refund_amount = 3;
+  string product_id   = 4;
+  int32  quantity     = 5;
+}
+
+// ── 관리자 ─────────────────────────────────────────────────
+
+message UserSummary {
+  int32  id             = 1;
+  string username       = 2;
+  string email          = 3;
+  int32  points         = 4;
+  bool   is_admin       = 5;
+  bool   is_active      = 6;
+  string created_at     = 7;
+  string deactivated_by = 8;  // 'user'(탈퇴) | 'admin'(정지) | ''(활성)
+}
+
+message AdminListUsersRequest {}
+message AdminListUsersResponse {
+  repeated UserSummary users = 1;
+}
+
+message AdminDeleteUserRequest {
+  int32 user_id = 1;
+}
+message AdminDeleteUserResponse {
+  bool success = 1;
+}
+
+message AdminAdjustPointsRequest {
+  int32  user_id     = 1;
+  int32  amount      = 2;
+  string description = 3;
+}
+message AdminAdjustPointsResponse {
+  bool  success      = 1;
+  int32 points_after = 2;
+}
+
+message AdminSetAdminRequest {
+  int32 user_id  = 1;
+  bool  is_admin = 2;
+}
+message AdminSetAdminResponse {
+  bool success = 1;
+}
+
+message AdminGetAllOrdersRequest {}
+message AdminGetAllOrdersResponse {
+  repeated Order orders = 1;
+}
+
+// ── 회원 탈퇴 ───────────────────────────────────────────────
+
+message WithdrawUserRequest {
+  int32 user_id = 1;
+}
+message WithdrawUserResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+// ── 관리자: 계정 복구 ───────────────────────────────────────
+
+message AdminRestoreUserRequest {
+  int32 user_id = 1;
+}
+message AdminRestoreUserResponse {
+  bool   success = 1;
+  string message = 2;
+}

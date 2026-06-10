@@ -36,10 +36,10 @@ wsl -d Ubuntu -u root -- mongod --config /etc/mongod.conf --fork
 ## 작업 방식에 대한 함의
 - 코드는 Kafka 브로커 주소, MongoDB 접속 정보 등을 **환경변수로 주입받도록 작성**해서 어떤 환경(로컬/VM/k8s)에 배포되든 동작하게 구성
 
-## 작업 순서 (중요)
-- **이미지 빌드는 마지막 단계**: 애플리케이션 기능 구현을 모두 끝낸 뒤에 Dockerfile/이미지 빌드를 진행할 계획
-- 즉, 지금 단계에서 Dockerfile을 먼저 만들거나 이미지 빌드를 제안하지 말 것 — 기능 구현이 끝난 뒤 사용자가 요청할 때 진행
+## 작업 순서 (업데이트 2026-06-10)
+- **이미지 빌드 단계 진입**: 기능 구현 완료 후 Dockerfile 작성 단계에 진입함
+- `docker/` 디렉터리에 7개 서비스 Dockerfile + ConfigMap/Secret YAML 작성 완료
+- Docker Desktop 미설치 상태 → 이미지 빌드는 Docker Desktop 설치 후 진행
+- 자세한 현황은 [[docker-k8s-progress]] 참고
 
-**Why**: 사용자가 명확히 "어플리케이션이 정상적으로 동작하도록 구현을 다 끝낸 후에 이미지를 만들 예정"이라고 밝힘. 기능 구현과 이미지화를 동시에 진행하면 작업이 섞여 정리하기 어려워짐. 로컬 e2e 테스트는 이미지 빌드와 별개로, 개발 중 검증을 위해 별도로 필요해진 것.
-
-**How to apply**: Kafka producer/consumer, DB 연동 코드를 작성할 때는 항상 환경변수 기반 설정으로 작성. **Dockerfile 작성·이미지 빌드는 사용자가 명시적으로 요청하기 전까지 시작하지 말 것**. 로컬 Kafka/MongoDB 설치·운영은 이제 진행 중인 작업이므로 막지 말 것 (방침이 바뀜 — 과거 메모와 충돌 시 이 메모가 최신). [[project-scope-and-role]], [[architecture_decisions]], [[feedback-stay-within-directory-scope]], [[feedback-use-latest-stack-and-official-docs]]와 함께 참고.
+**How to apply**: 이제 Dockerfile/이미지 빌드 작업을 자유롭게 진행해도 됨. 로컬 Kafka/MongoDB 설치·운영은 이제 진행 중인 작업이므로 막지 말 것. [[project-scope-and-role]], [[architecture_decisions]], [[docker-k8s-progress]]와 함께 참고.

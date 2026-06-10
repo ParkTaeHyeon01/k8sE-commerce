@@ -1,0 +1,68 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { fetchProduct } from "../api";
+
+export default function ProductDetail() {
+  const { product_id } = useParams();
+  const navigate = useNavigate();
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchProduct(product_id)
+      .then(setProduct)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [product_id]);
+
+  if (loading) return <p className="status-msg">불러오는 중...</p>;
+  if (error) return <p className="status-msg">오류: {error}</p>;
+  if (!product) return null;
+
+  return (
+    <div className="detail-page">
+      <button className="back-btn" onClick={() => navigate(-1)}>← 목록으로</button>
+
+      <div className="detail-top">
+        <img className="detail-img" src={product.image_url} alt={product.name} />
+        <div className="detail-info">
+          {product.category_name && (
+            <span className="cat-tag">{product.category_name}</span>
+          )}
+          <h2>{product.name}</h2>
+          <div className="price-block">
+            {product.discount_rate > 0 && (
+              <span className="discount-badge">{product.discount_rate}%</span>
+            )}
+            <span className="sale-price-big">{product.sale_price?.toLocaleString()}원</span>
+          </div>
+          {product.original_price > 0 && product.original_price !== product.sale_price && (
+            <p className="original-price-line">정가 {product.original_price?.toLocaleString()}원</p>
+          )}
+          {product.delivery_info && (
+            <span className="delivery-tag">🚚 {product.delivery_info}</span>
+          )}
+          <p className="stock-detail">
+            {product.stock > 0 ? `재고: ${product.stock}개` : <span className="soldout-text">품절</span>}
+          </p>
+        </div>
+      </div>
+
+      {(product.detail_blocks ?? []).length > 0 && (
+        <div className="detail-blocks">
+          <div className="detail-blocks-header">상품 상세정보</div>
+          <div className="detail-blocks-body">
+            {(product.detail_blocks ?? []).map((block, i) =>
+              block.type === "image"
+                ? <img key={i} src={block.value} alt="" loading="lazy" />
+                : block.type === "li"
+                  ? <li key={i}>{block.value}</li>
+                  : <p key={i}>{block.value}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

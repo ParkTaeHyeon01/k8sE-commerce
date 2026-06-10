@@ -13,3 +13,5 @@
 - [강의실/집 동기화 루틴](dual_environment_sync_workflow.md) — hi(강의실)/User(집) 계정 오가며 메모리 폴더 수동 복사+git 동기화. 경로 다른 건 정상
 - [MongoDB products 스키마](mongodb_products_schema.md) — product_id 키, targets 배열, status(draft/ready)로 노출 제어, 상세 이미지는 URL 배열 (설계 완료, 구현 전)
 - [최신 스택 + 공식문서 우선](feedback_use_latest_stack_and_official_docs.md) — 버전/설정은 항상 검색으로 최신 확인 후 공식 문서 기준으로 안내 (학습데이터 컷오프 이후 변화 큼, 예: Kafka 4.x는 KRaft 전용)
+- [auth-member 서비스](auth_member_service.md) — MariaDB 기반 회원/포인트/주문/장바구니/관리자 기능 구현 완료 (포트 50052)
+- [Docker/k8s 배포 준비 현황](docker_k8s_progress.md) — Dockerfile 7개+ConfigMap/Secret 완료, Deployment/Service YAML 미작성, Docker Desktop 미설치
