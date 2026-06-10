@@ -13,7 +13,10 @@ logs/
 crawled_*.json
 
 # 임시 디버그 스크립트
-check_ranks.py
+check_*.py
+
+# Redis 덤프
+dump.rdb
 
 # Claude Code 로컬 설정 (메모리 폴더만 git 추적)
 .claude/*

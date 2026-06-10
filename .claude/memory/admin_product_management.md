@@ -1,6 +1,6 @@
 ---
 name: admin-product-management
-description: "관리자 상품 관리 기능 개선 완료 — 상품번호 컬럼, 검색, 컬럼 정렬 (미커밋, 2026-06-10)"
+description: "관리자 상품 관리 기능 개선 완료 — 상품번호 컬럼, 검색, 컬럼 정렬 (커밋 076786a, 2026-06-10)"
 metadata:
   type: project
 ---
