@@ -5,8 +5,8 @@
 - [디렉터리 영역 침범 금지](feedback_stay_within_directory_scope.md) — 작업 중 다른 서비스 영역 코드 생성 금지 (예: 크롤러 작업 중 백엔드에 Kafka consumer 생성)
 - [크롤링 대상: 마켓컬리](crawler_target_kurly.md) — G마켓→Kurly로 변경(커밋 d0afa30). URL 패턴, category 필터, 식품 카테고리 코드 정리
 - [크롤러 다중 운영 계획](crawler_multi_instance_plan.md) — 베스트/할인을 환경변수(CRAWL_TARGET) 기반 단일 코드로 분리 (구현완료, 커밋 e91f4b8), k8s CronJob 2개로 운영 예정
-- [크롤링→Kafka 파이프라인 진행상황](crawler_kafka_pipeline_progress.md) — 파이프라인+UI+인기순정렬+카테고리동적화+전통주오염수정 완료. 미커밋 상태, git push 필요
-- [검색 기능 구현](search_feature.md) — ProductList 검색바+자동완성, search_by 분기($text/regex/id), 숫자 단독→regex 폴백 (확정)
+- [크롤링→Kafka 파이프라인 진행상황](crawler_kafka_pipeline_progress.md) — 파이프라인+UI+인기순정렬+카테고리동적화+전통주오염수정 완료 (커밋 076786a, 푸시 완료)
+- [검색 기능 구현](search_feature.md) — ProductList 검색바+자동완성, nGram 배열 인덱스 기반 부분 문자열 검색 (커밋 87995c6)
 - [관리자 상품 관리 개선](admin_product_management.md) — 상품번호 컬럼, 상품명/번호 타입 선택 검색, 컬럼 정렬(asc→desc→인기순), 500에러/CORS 버그 수정
 - [부하테스트 시나리오 후보](loadtest_scenario_candidates.md) — k6 데모용 트래픽 쏠림 시나리오 (할인 이벤트 오픈, 포인트 차감 동시요청 등)
 - [메모리 선제적 관리](feedback_proactive_memory_upkeep.md) — 요청 없이도 결정/변경 생길 때마다 즉시 메모리 점검·갱신할 것 (환경 이동 잦음)
