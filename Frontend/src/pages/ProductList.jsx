@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { fetchCategories, fetchProducts, addToCart } from "../api";
+import { fetchCategories, fetchProducts, addToCart, fetchSuggest } from "../api";
 import { isLoggedIn } from "../auth";
 
 const TABS = [
@@ -32,16 +32,24 @@ const PAGE_SIZE = 20;
 export default function ProductList() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [target, setTarget]           = useState(searchParams.get("target") || "");
+  const [target, setTarget]             = useState(searchParams.get("target") || "");
   const [categoryCode, setCategoryCode] = useState(searchParams.get("category") || "");
-  const [sortBy, setSortBy]           = useState("rank");
-  const [page, setPage]               = useState(1);
-  const [refreshKey, setRefreshKey]   = useState(0);
-  const [data, setData]               = useState(null);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState(null);
-  const [categories, setCategories]   = useState(FALLBACK_CATEGORIES);
-  const [cartMsg, setCartMsg]         = useState("");
+  const [sortBy, setSortBy]             = useState("rank");
+  const [page, setPage]                 = useState(1);
+  const [refreshKey, setRefreshKey]     = useState(0);
+  const [data, setData]                 = useState(null);
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState(null);
+  const [categories, setCategories]     = useState(FALLBACK_CATEGORIES);
+  const [cartMsg, setCartMsg]           = useState("");
+
+  // 검색
+  const [searchInput, setSearchInput]   = useState("");
+  const [activeQuery, setActiveQuery]   = useState("");
+  const [suggestions, setSuggestions]   = useState([]);
+  const [showSuggest, setShowSuggest]   = useState(false);
+  const debounceRef = useRef(null);
+  const searchRef   = useRef(null);
 
   useEffect(() => {
     fetchCategories(target)
@@ -51,13 +59,62 @@ export default function ProductList() {
 
   useEffect(() => {
     setLoading(true); setError(null); setData(null);
-    fetchProducts({ target, category_code: categoryCode, page, page_size: PAGE_SIZE, sort_by: sortBy })
+    fetchProducts({ target, category_code: categoryCode, page, page_size: PAGE_SIZE, sort_by: sortBy, q: activeQuery })
       .then(setData).catch((e) => setError(e.message)).finally(() => setLoading(false));
-  }, [target, categoryCode, sortBy, page, refreshKey]);
+  }, [target, categoryCode, sortBy, page, refreshKey, activeQuery]);
+
+  // 검색창 외부 클릭 시 드롭다운 닫기
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowSuggest(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const handleSearchInput = useCallback((e) => {
+    const val = e.target.value;
+    setSearchInput(val);
+    clearTimeout(debounceRef.current);
+    if (!val.trim()) { setSuggestions([]); setShowSuggest(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      const res = await fetchSuggest(val.trim());
+      const list = res.suggestions ?? [];
+      setSuggestions(list);
+      setShowSuggest(list.length > 0);
+    }, 200);
+  }, []);
+
+  const submitSearch = (q) => {
+    setActiveQuery(q);
+    setPage(1);
+    setShowSuggest(false);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    submitSearch(searchInput.trim());
+  };
+
+  const handleSuggestClick = (word) => {
+    setSearchInput(word);
+    submitSearch(word);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setActiveQuery("");
+    setSuggestions([]);
+    setShowSuggest(false);
+    setPage(1);
+  };
 
   const totalPages = data ? Math.ceil((data.total ?? 0) / PAGE_SIZE) : 0;
 
   const handleTabChange = (t) => {
+    setSearchInput(""); setActiveQuery(""); setSuggestions([]); setShowSuggest(false);
     if (t === target) { setCategoryCode(""); setSortBy("rank"); setPage(1); setRefreshKey(k => k + 1); }
     else { setTarget(t); setCategoryCode(""); setSortBy("rank"); setPage(1); }
   };
@@ -67,6 +124,7 @@ export default function ProductList() {
     if (!isLoggedIn()) { navigate("/login"); return; }
     try {
       await addToCart(product_id, 1);
+      window.dispatchEvent(new Event("cart-change"));
       if (goToCart) {
         navigate("/cart");
       } else {
@@ -108,8 +166,41 @@ export default function ProductList() {
         </aside>
 
         <main className="main-content">
+          {/* 검색바 */}
+          <div className="product-search-wrap" ref={searchRef}>
+            <form className="product-search-form" onSubmit={handleSearchSubmit}>
+              <input
+                className="product-search-input"
+                type="text"
+                placeholder="상품명 검색..."
+                value={searchInput}
+                onChange={handleSearchInput}
+                onFocus={() => suggestions.length > 0 && setShowSuggest(true)}
+              />
+              {searchInput && (
+                <button type="button" className="product-search-clear" onClick={handleClearSearch}>✕</button>
+              )}
+              <button type="submit" className="product-search-btn">검색</button>
+            </form>
+            {showSuggest && (
+              <ul className="suggest-list">
+                {suggestions.map((s) => (
+                  <li key={s} className="suggest-item" onMouseDown={() => handleSuggestClick(s)}>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <div className="result-bar">
-            <span className="result-count">{data ? <>총 <b>{(data.total ?? 0).toLocaleString()}</b>개</> : ""}</span>
+            <span className="result-count">
+              {data ? (
+                activeQuery
+                  ? <><b>"{activeQuery}"</b> 검색 결과 <b>{(data.total ?? 0).toLocaleString()}</b>개</>
+                  : <>총 <b>{(data.total ?? 0).toLocaleString()}</b>개</>
+              ) : ""}
+            </span>
             <select className="sort-select" value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}>
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -120,7 +211,9 @@ export default function ProductList() {
           {loading && <p className="status-msg">불러오는 중...</p>}
           {error   && <p className="status-msg">오류: {error}</p>}
           {!loading && !error && data && (data.products ?? []).length === 0 && (
-            <p className="empty-msg">상품이 없습니다.<br />크롤링 후 다시 확인해주세요.</p>
+            <p className="empty-msg">
+              {activeQuery ? `"${activeQuery}"에 대한 검색 결과가 없습니다.` : "상품이 없습니다.\n크롤링 후 다시 확인해주세요."}
+            </p>
           )}
 
           {!loading && !error && data && (data.products ?? []).length > 0 && (

@@ -18,6 +18,8 @@ message ListProductsRequest {
   int32  page          = 3; // 1-based
   int32  page_size     = 4; // 기본 20
   string sort_by       = 5; // "" | "rank" | "price_asc" | "price_desc" | "discount_desc"
+  string search        = 6; // 검색어
+  string search_by     = 7; // "id" → product_id 정확 검색, "name" 또는 "" → $text 검색
 }
 
 message ListProductsResponse {

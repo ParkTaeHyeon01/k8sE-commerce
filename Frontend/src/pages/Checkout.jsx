@@ -91,6 +91,7 @@ export default function Checkout() {
     setPaying(true);
     try {
       const res = await checkout(selectedAddr);
+      window.dispatchEvent(new Event("cart-change"));
       navigate("/me", { state: { tab: "orders", message: `결제 완료! 잔여 포인트: ${res.points_after?.toLocaleString()}점` } });
     } catch (err) {
       setError(err.message);

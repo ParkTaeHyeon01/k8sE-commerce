@@ -27,10 +27,17 @@ export async function fetchCategories(target = "") {
   return res.json();
 }
 
-export async function fetchProducts({ target = "", category_code = "", page = 1, page_size = 20, sort_by = "" } = {}) {
-  const params = new URLSearchParams({ target, category_code, page, page_size, sort_by });
+export async function fetchProducts({ target = "", category_code = "", page = 1, page_size = 20, sort_by = "", q = "" } = {}) {
+  const params = new URLSearchParams({ target, category_code, page, page_size, sort_by, q });
   const res = await fetch(`${BASE}/products?${params}`);
   if (!res.ok) throw new Error("상품 목록 조회 실패");
+  return res.json();
+}
+
+export async function fetchSuggest(q) {
+  if (!q) return { suggestions: [] };
+  const res = await fetch(`${BASE}/products/suggest?q=${encodeURIComponent(q)}`);
+  if (!res.ok) return { suggestions: [] };
   return res.json();
 }
 
@@ -79,8 +86,8 @@ export async function cancelOrder(order_id)              { return req("POST", `/
 
 // ── 관리자 ──────────────────────────────────────────────────
 
-export async function adminGetProducts(page=1, page_size=50) {
-  return req("GET", `/admin/products?page=${page}&page_size=${page_size}`);
+export async function adminGetProducts(page=1, page_size=50, q="", sort_by="", search_by="") {
+  return req("GET", `/admin/products?page=${page}&page_size=${page_size}&q=${encodeURIComponent(q)}&sort_by=${sort_by}&search_by=${search_by}`);
 }
 export async function adminUpdateStock(product_id, stock) {
   return req("PUT", `/admin/products/${product_id}/stock`, { stock });

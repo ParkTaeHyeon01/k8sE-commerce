@@ -5,6 +5,7 @@
 # 덮어쓰면 중복 문서 없이 항상 최신 상태로 수렴하고, 크롤러가 중간에 멈췄다 재시작해도
 # 안전하다 (멱등성).
 import os
+import re
 from datetime import datetime, timezone
 
 from pymongo import MongoClient
@@ -12,6 +13,9 @@ from pymongo import MongoClient
 _MONGODB_URI = os.environ["MONGODB_URI"]
 _MONGODB_DB = os.environ.get("MONGODB_DB", "ecommerce")
 _COLLECTION_NAME = "products"
+
+# 숫자+단위 패턴 (500g, 1L, 2kg 등) 제거
+_UNIT_PATTERN = re.compile(r"\d+(\.\d+)?\s*(ml|ML|l|L|g|G|kg|KG|mg|MG|개|팩|봉|병|캔|박스|세트|인분|번들|plus|Plus)?", re.IGNORECASE)
 
 # 매번 최신값으로 덮어써야 하는 필드
 _SET_FIELDS = (
@@ -30,6 +34,28 @@ def get_collection():
     """products 컬렉션 핸들을 반환한다."""
     client = MongoClient(_MONGODB_URI)
     return client[_MONGODB_DB][_COLLECTION_NAME]
+
+
+def get_keywords_collection():
+    client = MongoClient(_MONGODB_URI)
+    return client[_MONGODB_DB]["keywords"]
+
+
+def _extract_keywords(name: str) -> list[str]:
+    """상품명에서 의미있는 단어만 추출한다. 숫자/단위/특수문자 제거."""
+    cleaned = _UNIT_PATTERN.sub(" ", name)
+    words = re.split(r"[\s\[\]()·/\-·,]+", cleaned)
+    return [w for w in words if len(w) >= 2]
+
+
+def upsert_keywords(col, name: str) -> None:
+    """상품명 단어들을 keywords 컬렉션에 upsert한다 (count 누적)."""
+    for word in _extract_keywords(name):
+        col.update_one(
+            {"text": word},
+            {"$inc": {"count": 1}},
+            upsert=True,
+        )
 
 
 def upsert_product(collection, product: dict) -> None:
@@ -53,6 +79,8 @@ def upsert_product(collection, product: dict) -> None:
         },
         upsert=True,
     )
+    if "name" in product:
+        upsert_keywords(get_keywords_collection(), product["name"])
 
 
 def sync_targets(collection, target: str, product_ids: list[str]) -> int:

@@ -42,16 +42,65 @@ function ProductManagement({ setMessage }) {
   const [editStock, setEditStock] = useState({});
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [searchType, setSearchType] = useState("name"); // 'name' | 'product_id'
+  const [searchInput, setSearchInput] = useState("");
+  const [activeQuery, setActiveQuery] = useState("");
+  const [sortCol, setSortCol] = useState(null);
+  const [sortDir, setSortDir] = useState(null); // 'asc' | 'desc' | null(인기순)
   const PAGE_SIZE = 50;
 
-  useEffect(() => { load(); }, [page]);
+  const sortBy = sortCol && sortDir ? `${sortCol}_${sortDir}` : "";
+
+  useEffect(() => { load(); }, [page, activeQuery, sortBy]);
 
   const load = async () => {
+    setMessage("");
     try {
-      const data = await adminGetProducts(page, PAGE_SIZE);
+      const data = await adminGetProducts(page, PAGE_SIZE, activeQuery, sortBy, searchType === "product_id" ? "id" : "name");
       setProducts(data.products);
       setTotal(data.total);
-    } catch (err) { setMessage(err.message); }
+    } catch (err) {
+      setProducts([]);
+      setTotal(0);
+      setMessage(err.message);
+    }
+  };
+
+  const handleSort = (col) => {
+    if (sortCol !== col) {
+      setSortCol(col); setSortDir("asc");
+    } else {
+      // asc → desc → null(인기순) → asc 순환
+      setSortDir(d => d === "asc" ? "desc" : d === "desc" ? null : "asc");
+      if (sortDir === null) setSortCol(col);
+    }
+    setPage(1);
+  };
+
+  const sortIcon = (col) => {
+    if (sortCol !== col) return <span className="sort-icon sort-icon--idle">⇅</span>;
+    if (sortDir === "asc")  return <span className="sort-icon sort-icon--active">▲</span>;
+    if (sortDir === "desc") return <span className="sort-icon sort-icon--active">▼</span>;
+    return <span className="sort-icon sort-icon--idle">⇅</span>;
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setActiveQuery(searchInput.trim());
+    setPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setActiveQuery("");
+    setPage(1);
+  };
+
+  const handleTypeChange = (e) => {
+    setSearchType(e.target.value);
+    setSearchInput("");
+    setActiveQuery("");
+    setPage(1);
   };
 
   const handleUpdateStock = async (product_id) => {
@@ -77,14 +126,43 @@ function ProductManagement({ setMessage }) {
 
   return (
     <div className="admin-section">
-      <p className="admin-total">전체 {total?.toLocaleString()}개</p>
+      <div className="admin-search-bar">
+        <form onSubmit={handleSearchSubmit}>
+          <select value={searchType} onChange={handleTypeChange}>
+            <option value="name">상품명</option>
+            <option value="product_id">상품번호</option>
+          </select>
+          <input
+            type={searchType === "product_id" ? "number" : "text"}
+            placeholder={searchType === "product_id" ? "상품번호 입력..." : "상품명 검색..."}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+          />
+          {searchInput && <button type="button" onClick={handleClearSearch}>✕</button>}
+          <button type="submit">검색</button>
+        </form>
+        <p className="admin-total">
+          {activeQuery
+            ? <><b>{searchType === "product_id" ? `#${activeQuery}` : `"${activeQuery}"`}</b> 검색결과 {total?.toLocaleString()}개</>
+            : <>전체 {total?.toLocaleString()}개</>}
+        </p>
+      </div>
       <table className="admin-table">
         <thead>
-          <tr><th>상품명</th><th>카테고리</th><th>가격</th><th>할인율</th><th>재고</th><th>관리</th></tr>
+          <tr>
+            <th className="sortable" style={{width:"110px"}} onClick={() => handleSort("product_id")}>상품번호 {sortIcon("product_id")}</th>
+            <th className="sortable" onClick={() => handleSort("name")}>상품명 {sortIcon("name")}</th>
+            <th className="sortable" onClick={() => handleSort("category")}>카테고리 {sortIcon("category")}</th>
+            <th className="sortable" onClick={() => handleSort("price")}>가격 {sortIcon("price")}</th>
+            <th className="sortable" onClick={() => handleSort("discount")}>할인율 {sortIcon("discount")}</th>
+            <th className="sortable" onClick={() => handleSort("stock")}>재고 {sortIcon("stock")}</th>
+            <th>관리</th>
+          </tr>
         </thead>
         <tbody>
-          {products.map(p => (
+          {products.map((p) => (
             <tr key={p.product_id}>
+              <td className="row-num">{p.product_id}</td>
               <td className="product-name-cell" onClick={() => navigate(`/products/${p.product_id}`)}>{p.name}</td>
               <td>{p.category_name}</td>
               <td>{p.sale_price?.toLocaleString()}원</td>

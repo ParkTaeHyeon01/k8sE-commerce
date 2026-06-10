@@ -16,7 +16,7 @@ export default function Cart() {
 
   const loadCart = () => {
     getCart()
-      .then(setCart)
+      .then(data => { setCart(data); window.dispatchEvent(new Event("cart-change")); })
       .catch(() => setMessage("장바구니를 불러오지 못했습니다."))
       .finally(() => setLoading(false));
   };

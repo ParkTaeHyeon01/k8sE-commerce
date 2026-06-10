@@ -46,6 +46,48 @@ button { font-family: inherit; cursor: pointer; }
 .header-logo .logo-text span { color: #93c5fd; }
 
 .header-auth { display: flex; gap: 10px; }
+
+/* ───────── 상품목록 검색바 ───────── */
+.product-search-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+.product-search-form {
+  display: flex; align-items: center;
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+  transition: border-color .15s;
+}
+.product-search-form:focus-within { border-color: var(--primary); }
+.product-search-input {
+  flex: 1; border: none; background: transparent;
+  padding: 10px 16px; font-size: 0.95rem; color: var(--text); outline: none;
+}
+.product-search-input::placeholder { color: var(--text-sub); }
+.product-search-btn {
+  padding: 10px 18px; border: none;
+  background: var(--primary); color: #fff;
+  font-size: 0.9rem; font-weight: 600;
+  transition: background .15s; white-space: nowrap;
+}
+.product-search-btn:hover { background: var(--primary-dark); }
+.product-search-clear {
+  padding: 10px 12px; border: none; background: transparent;
+  color: var(--text-sub); font-size: 1rem; cursor: pointer;
+}
+.product-search-clear:hover { color: var(--accent); }
+.suggest-list {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow-md);
+  list-style: none; z-index: 200; overflow: hidden;
+}
+.suggest-item {
+  padding: 10px 16px; font-size: 0.95rem; cursor: pointer;
+  color: var(--text); transition: background .1s;
+}
+.suggest-item:hover { background: var(--primary-light); color: var(--primary); }
 .btn-login {
   padding: 10px 22px; border-radius: 10px;
   border: 2px solid rgba(255,255,255,.4); background: transparent;
@@ -439,7 +481,21 @@ button { font-family: inherit; cursor: pointer; }
 .admin-tab { padding: 12px 28px; background: none; border: none; font-size: 0.97rem; font-weight: 600; color: var(--text-sub); border-bottom: 3px solid transparent; margin-bottom: -2px; cursor: pointer; }
 .admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 .admin-message { background: var(--primary-light); color: var(--primary); padding: 12px 18px; border-radius: 10px; margin-bottom: 16px; font-weight: 600; }
-.admin-total { font-size: 0.9rem; color: var(--text-sub); margin-bottom: 12px; }
+.admin-total { font-size: 0.9rem; color: var(--text-sub); margin: 0; }
+.admin-search-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.admin-search-bar form { display: flex; gap: 0; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; }
+.admin-search-bar select { border: none; border-right: 1.5px solid var(--border); outline: none; padding: 8px 10px; font-size: 0.88rem; background: var(--bg); color: var(--text); cursor: pointer; font-family: inherit; }
+.admin-search-bar input { border: none; outline: none; padding: 8px 12px; font-size: 0.9rem; width: 220px; }
+.admin-search-bar button[type="submit"] { padding: 8px 14px; background: var(--primary); color: #fff; border: none; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+.admin-search-bar button[type="submit"]:hover { background: var(--primary-dark); }
+.admin-search-bar button[type="button"] { padding: 8px 10px; background: transparent; border: none; color: var(--text-sub); font-size: 0.9rem; cursor: pointer; }
+.admin-search-bar button[type="button"]:hover { color: var(--accent); }
+.row-num { text-align: center; color: var(--text-sub); font-size: 0.82rem; }
+.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable:hover { background: #1a3254; }
+.sort-icon { margin-left: 4px; font-size: 0.75rem; }
+.sort-icon--idle { opacity: 0.35; }
+.sort-icon--active { color: #93c5fd; }
 .admin-table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); font-size: 0.88rem; }
 .admin-table th { background: var(--primary); color: #fff; padding: 12px 14px; text-align: left; font-weight: 700; }
 .admin-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -526,3 +582,4 @@ button { font-family: inherit; cursor: pointer; }
 
 /* 주문 내역 배송지 */
 .order-addr { font-size: 0.8rem; color: var(--text-sub); margin-top: 2px; }
+

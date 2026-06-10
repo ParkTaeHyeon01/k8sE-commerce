@@ -14,7 +14,7 @@ import { getCart } from "./api";
 
 function Header() {
   const navigate = useNavigate();
-  const [user, setUser]         = useState(getUser());
+  const [user, setUser]           = useState(getUser());
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
@@ -24,20 +24,25 @@ function Header() {
     }
   }, []);
 
-  // 라우트 변경 시 유저/장바구니 갱신
   useEffect(() => {
-    const onStorage = () => setUser(getUser());
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("auth-change", () => {
-      const u = getUser();
-      setUser(u);
-      if (u) {
+    const refreshCart = () => {
+      if (getUser()) {
         getCart().then(data => setCartCount(data.items?.length ?? 0)).catch(() => {});
       } else {
         setCartCount(0);
       }
-    });
-    return () => window.removeEventListener("storage", onStorage);
+    };
+    const onStorage    = () => setUser(getUser());
+    const onAuthChange = () => { const u = getUser(); setUser(u); refreshCart(); };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("auth-change", onAuthChange);
+    window.addEventListener("cart-change", refreshCart);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("auth-change", onAuthChange);
+      window.removeEventListener("cart-change", refreshCart);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -82,15 +87,15 @@ export default function App() {
     <BrowserRouter>
       <Header />
       <Routes>
-        <Route path="/"                    element={<Home />} />
-        <Route path="/products"            element={<ProductList />} />
+        <Route path="/"                     element={<Home />} />
+        <Route path="/products"             element={<ProductList />} />
         <Route path="/products/:product_id" element={<ProductDetail />} />
-        <Route path="/login"               element={<Login />} />
-        <Route path="/register"            element={<Register />} />
-        <Route path="/cart"                element={<Cart />} />
-        <Route path="/checkout"            element={<Checkout />} />
-        <Route path="/me"                  element={<MyPage />} />
-        <Route path="/admin"               element={<Admin />} />
+        <Route path="/login"                element={<Login />} />
+        <Route path="/register"             element={<Register />} />
+        <Route path="/cart"                 element={<Cart />} />
+        <Route path="/checkout"             element={<Checkout />} />
+        <Route path="/me"                   element={<MyPage />} />
+        <Route path="/admin"                element={<Admin />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,6 +1,7 @@
 # gRPC 서비스 구현체
 # ListProducts: Redis 캐시 우선 조회 → 미스 시 MongoDB 쿼리 후 캐시 저장
 # GetProduct: product_id 기준 단건 조회 (캐시 없음 - 상세는 요청 빈도 낮음)
+import re
 import product_pb2
 import product_pb2_grpc
 from db import cache_get, cache_set, get_collection, get_categories_collection
@@ -57,18 +58,21 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
         target    = request.target or ""
         cat_code  = request.category_code or ""
         sort_by   = request.sort_by or ""
+        search    = request.search or ""
 
-        cache_key = f"list:{target}:{cat_code}:{page}:{page_size}:{sort_by}"
-        cached = cache_get(cache_key)
-        if cached:
-            _log.info(f"캐시 히트 - {cache_key}")
-            products = [_doc_to_summary(d) for d in cached["products"]]
-            return product_pb2.ListProductsResponse(
-                products=products,
-                total=cached["total"],
-                page=page,
-                page_size=page_size,
-            )
+        # 검색어가 없을 때만 캐시 사용 (검색은 조합이 너무 다양해 캐시 효율 낮음)
+        if not search:
+            cache_key = f"list:{target}:{cat_code}:{page}:{page_size}:{sort_by}"
+            cached = cache_get(cache_key)
+            if cached:
+                _log.info(f"캐시 히트 - {cache_key}")
+                products = [_doc_to_summary(d) for d in cached["products"]]
+                return product_pb2.ListProductsResponse(
+                    products=products,
+                    total=cached["total"],
+                    page=page,
+                    page_size=page_size,
+                )
 
         # detail_blocks 필터 제거 — status:"ready" 가 이미 보장함 (인덱스 풀활용)
         query: dict = {"status": "ready"}
@@ -76,18 +80,55 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
             query["targets"] = target
         if cat_code:
             query["category_code"] = cat_code
+        if search:
+            search_by = request.search_by or ""
+            if search_by == "id":
+                query["product_id"] = search
+            elif search_by == "name" or re.fullmatch(r"\d+", search):
+                # 관리자 상품명 검색 또는 숫자 단독 ($text는 숫자 토큰 인덱싱 안 함)
+                query["name"] = {"$regex": re.escape(search), "$options": "i"}
+            else:
+                query["$text"] = {"$search": search}
 
         # count + find 를 $facet 한 번으로 합쳐 MongoDB 왕복 1회 절감
         _SORT = {
-            "price_asc":     {"sale_price": 1},
-            "price_desc":    {"sale_price": -1},
-            "discount_desc": {"discount_rate": -1},
+            "product_id_asc":  {"product_id": 1},
+            "product_id_desc": {"product_id": -1},
+            "name_asc":        {"name": 1},
+            "name_desc":       {"name": -1},
+            "category_asc":    {"category_name": 1},
+            "category_desc":   {"category_name": -1},
+            "price_asc":       {"sale_price": 1},
+            "price_desc":      {"sale_price": -1},
+            "discount_asc":    {"discount_rate": 1},
+            "discount_desc":   {"discount_rate": -1},
+            "stock_asc":       {"stock": 1},
+            "stock_desc":      {"stock": -1},
         }
-        # sort_by 미지정 시 인기순 기본 적용
-        if not sort_by:
-            sort_by = "rank"
 
-        if sort_by == "rank":
+        if search and not sort_by and "$text" in query:
+            # $text 검색일 때만 textScore 정렬 ($regex/$exact에는 사용 불가)
+            sort_stage = {
+                "_add": {"$addFields": {"_score": {"$meta": "textScore"}}},
+                "_sort": {"$sort": {"_score": -1}},
+            }
+        elif not sort_by:
+            sort_by = "rank"
+            if target == "best":
+                rank_expr = {"$ifNull": ["$best_rank", 999999]}
+            elif target == "sales":
+                rank_expr = {"$ifNull": ["$sales_rank", 999999]}
+            else:
+                rank_expr = {"$min": [
+                    {"$ifNull": ["$best_rank",  999999]},
+                    {"$ifNull": ["$sales_rank", 999999]},
+                ]}
+            sort_stage = {
+                "_add": {"$addFields": {"_rank_sort": rank_expr}},
+                "_sort": {"$sort": {"_rank_sort": 1}},
+            }
+        elif sort_by == "rank":
+            # sort_by 미지정 시 인기순 기본 적용
             if target == "best":
                 rank_expr = {"$ifNull": ["$best_rank", 999999]}
             elif target == "sales":
@@ -122,7 +163,7 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
             "products": [
                 {"$skip": (page - 1) * page_size},
                 {"$limit": page_size},
-                {"$project": {"_id": 0}},
+                {"$project": {"_id": 0, "_score": 0, "_rank_sort": 0}},
             ],
         }})
 
@@ -131,8 +172,9 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
         total = result[0]["total"][0]["n"] if result and result[0]["total"] else 0
         docs  = result[0]["products"] if result else []
 
-        cache_set(cache_key, {"products": docs, "total": total})
-        _log.info(f"목록 조회 - target={target} cat={cat_code} page={page} total={total}")
+        if not search:
+            cache_set(cache_key, {"products": docs, "total": total})
+        _log.info(f"목록 조회 - target={target} cat={cat_code} search='{search}' page={page} total={total}")
 
         return product_pb2.ListProductsResponse(
             products=[_doc_to_summary(d) for d in docs],

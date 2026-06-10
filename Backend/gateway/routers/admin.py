@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
+import grpc
 import auth_pb2
 import product_pb2
 from grpc_client import get_auth_stub, get_product_stub
@@ -11,10 +12,13 @@ router = APIRouter()
 # ── 상품 관리 ──────────────────────────────────────────────
 
 @router.get("/products")
-def admin_list_products(request: Request, page: int = 1, page_size: int = 50):
+def admin_list_products(request: Request, page: int = 1, page_size: int = 50, q: str = "", sort_by: str = "", search_by: str = ""):
     get_current_admin(request)
-    stub = get_product_stub()
-    res  = stub.ListProducts(product_pb2.ListProductsRequest(page=page, page_size=page_size))
+    try:
+        stub = get_product_stub()
+        res  = stub.ListProducts(product_pb2.ListProductsRequest(page=page, page_size=page_size, search=q, sort_by=sort_by, search_by=search_by))
+    except grpc.RpcError as e:
+        raise HTTPException(status_code=502, detail=f"상품 서비스 오류: {e.code().name}")
     return {
         "products": [_product_to_dict(p) for p in res.products],
         "total": res.total, "page": res.page, "page_size": res.page_size,
