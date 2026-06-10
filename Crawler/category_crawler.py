@@ -18,6 +18,7 @@ from pymongo import MongoClient
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from logger import get_logger
+from pages import FOOD_CATEGORY_CODES
 
 _MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/")
 _MONGODB_DB  = os.environ.get("MONGODB_DB", "ecommerce")
@@ -55,7 +56,7 @@ def fetch_categories(target: str, logger) -> list[dict]:
             code = str(item.get("key", ""))
             name = item.get("name", "")
             count = item.get("product_counts", 0)
-            if code.isdigit() and name:
+            if code.isdigit() and name and code in FOOD_CATEGORY_CODES:
                 categories.append({"code": code, "name": name, "count": count})
 
     return categories

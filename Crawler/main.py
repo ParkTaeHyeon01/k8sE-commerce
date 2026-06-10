@@ -19,7 +19,7 @@ from playwright_stealth import Stealth
 
 import kafka_producer
 from logger import get_logger
-from pages import COLLECTIONS, FOOD_CATEGORIES, SALES_FOOD_CATEGORIES, build_url
+from pages import COLLECTIONS, FOOD_CATEGORIES, SALES_FOOD_CATEGORIES, FOOD_CATEGORY_CODES, build_url
 from parsers import kurly, kurly_detail
 
 # 로컬 개발 중에는 프로젝트 루트의 .env에서, k8s에서는 ConfigMap/Secret으로 주입된 환경변수를 그대로 사용한다
@@ -32,6 +32,28 @@ USER_AGENT = (
 
 # 베스트("best") / 할인("sales") 중 어떤 컬렉션을 수집할지 환경변수로 선택한다
 CRAWL_TARGET = os.environ.get("CRAWL_TARGET", "best")
+
+
+def load_categories(target: str, logger) -> dict[str, str]:
+    """MongoDB categories 컬렉션에서 카테고리 목록을 읽어온다.
+    카테고리 크롤러가 아직 실행되지 않았거나 실패한 경우 pages.py 하드코딩을 폴백으로 사용한다.
+    """
+    fallback = FOOD_CATEGORIES if target == "best" else SALES_FOOD_CATEGORIES
+    try:
+        from pymongo import MongoClient
+        _MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/")
+        _MONGODB_DB  = os.environ.get("MONGODB_DB", "ecommerce")
+        col = MongoClient(_MONGODB_URI)[_MONGODB_DB]["categories"]
+        docs = list(col.find({"target": target}, {"_id": 0, "code": 1, "name": 1}))
+        if docs:
+            # 식품 카테고리 코드만 필터링
+            categories = {d["code"]: d["name"] for d in docs if d["code"] in FOOD_CATEGORY_CODES}
+            logger.info(f"MongoDB에서 카테고리 {len(categories)}개 로드 (target={target}, 식품만)")
+            return categories
+    except Exception as e:
+        logger.error(f"카테고리 로드 실패, 하드코딩 목록 사용: {e}")
+    logger.info(f"하드코딩 카테고리 {len(fallback)}개 사용 (target={target})")
+    return fallback
 
 
 async def crawl_category_list(page, logger, label: str, category_name: str, url: str) -> list[dict]:
@@ -50,10 +72,18 @@ async def crawl_category_list(page, logger, label: str, category_name: str, url:
     return products
 
 
+class LoginRequiredError(Exception):
+    pass
+
+
 async def fill_detail(page, product: dict) -> None:
     """상품 상세페이지를 방문해 상세이미지를 채운다 (실패 시 호출 측에서 처리하도록 예외를 그대로 던진다)."""
     await page.goto(product["detail_url"], wait_until="domcontentloaded", timeout=50000)
     await page.wait_for_timeout(2000)
+
+    # 성인 인증 필요 상품 감지 (로그인 모달)
+    if await page.locator("text=로그인하셔야 본 서비스를 이용할 수 있습니다").count() > 0:
+        raise LoginRequiredError()
 
     # 천천히 아래로 스크롤해 Intersection Observer를 구간별로 트리거
     for _ in range(12):
@@ -86,6 +116,10 @@ async def process_product(page, logger, producer, trace_id: str, crawled_at: str
     try:
         await fill_detail(page, product)
         product["status"] = "ready"
+    except LoginRequiredError:
+        logger.info(f"로그인 필요 상품 - 목록 정보만 저장 - {product['name']} ({product['product_id']})")
+        product["detail_blocks"] = []
+        product["status"] = "ready"
     except Exception as e:
         logger.error(f"상세 수집 실패 - {product['name']} ({product['product_id']}): {e}")
         product["detail_blocks"] = []
@@ -103,8 +137,7 @@ async def run() -> None:
         raise ValueError(f"알 수 없는 CRAWL_TARGET 값: {CRAWL_TARGET} (best 또는 sales만 가능)")
 
     label = COLLECTIONS[CRAWL_TARGET]["label"]
-    # 세일 페이지에는 전통주(251) 카테고리가 없어서 target에 따라 카테고리 목록을 분리한다
-    categories = SALES_FOOD_CATEGORIES if CRAWL_TARGET == "sales" else FOOD_CATEGORIES
+    categories = load_categories(CRAWL_TARGET, logger)
     logger.info(f"크롤링 작업 시작 - 대상: {label}, 카테고리 {len(categories)}개")
 
     producer = kafka_producer.create_producer()

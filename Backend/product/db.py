@@ -49,7 +49,7 @@ def get_categories_collection():
 def get_redis() -> redis.Redis:
     global _redis_client
     if _redis_client is None:
-        _redis_client = redis.from_url(_REDIS_URL, decode_responses=True, socket_connect_timeout=1)
+        _redis_client = redis.from_url(_REDIS_URL, decode_responses=True, socket_connect_timeout=1, protocol=2)
     return _redis_client
 
 
@@ -74,5 +74,17 @@ def cache_set(key: str, value: dict | list) -> None:
     _mem_set(key, value)
     try:
         get_redis().setex(key, _CACHE_TTL, json.dumps(value, ensure_ascii=False))
+    except Exception:
+        pass
+
+
+def cache_delete_pattern(pattern: str) -> None:
+    # 인메모리 캐시 전체 초기화 (패턴 매칭 비용보다 단순 초기화가 빠름)
+    _mem.clear()
+    try:
+        r = get_redis()
+        keys = r.keys(pattern)
+        if keys:
+            r.delete(*keys)
     except Exception:
         pass

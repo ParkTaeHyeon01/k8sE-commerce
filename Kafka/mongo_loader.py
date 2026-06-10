@@ -41,9 +41,6 @@ def upsert_product(collection, product: dict) -> None:
     """
     set_fields = {key: product[key] for key in _SET_FIELDS if key in product}
     set_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
-    # 인기순 정렬용 — target별 크롤 순위 저장 (best_rank / sales_rank)
-    if "rank" in product:
-        set_fields[f"{product['target']}_rank"] = product["rank"]
 
     set_on_insert = {key: product[key] for key in _SET_ON_INSERT_FIELDS if key in product}
 

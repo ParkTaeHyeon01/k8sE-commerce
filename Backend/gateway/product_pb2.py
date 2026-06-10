@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rproduct.proto\x12\x07product\"n\n\x13ListProductsRequest\x12\x0e\n\x06target\x18\x01 \x01(\t\x12\x15\n\rcategory_code\x18\x02 \x01(\t\x12\x0c\n\x04page\x18\x03 \x01(\x05\x12\x11\n\tpage_size\x18\x04 \x01(\x05\x12\x0f\n\x07sort_by\x18\x05 \x01(\t\"q\n\x14ListProductsResponse\x12)\n\x08products\x18\x01 \x03(\x0b\x32\x17.product.ProductSummary\x12\r\n\x05total\x18\x02 \x01(\x05\x12\x0c\n\x04page\x18\x03 \x01(\x05\x12\x11\n\tpage_size\x18\x04 \x01(\x05\"\'\n\x11GetProductRequest\x12\x12\n\nproduct_id\x18\x01 \x01(\t\"L\n\x12GetProductResponse\x12\'\n\x07product\x18\x01 \x01(\x0b\x32\x16.product.ProductDetail\x12\r\n\x05\x66ound\x18\x02 \x01(\x08\"5\n\x08\x43\x61tegory\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05\x63ount\x18\x03 \x01(\x05\"\'\n\x15ListCategoriesRequest\x12\x0e\n\x06target\x18\x01 \x01(\t\"?\n\x16ListCategoriesResponse\x12%\n\ncategories\x18\x01 \x03(\x0b\x32\x11.product.Category\"\xde\x01\n\x0eProductSummary\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\nsale_price\x18\x03 \x01(\x05\x12\x16\n\x0eoriginal_price\x18\x04 \x01(\x05\x12\x15\n\rdiscount_rate\x18\x05 \x01(\x05\x12\x11\n\timage_url\x18\x06 \x01(\t\x12\x15\n\rcategory_code\x18\x07 \x01(\t\x12\x15\n\rcategory_name\x18\x08 \x01(\t\x12\x0f\n\x07targets\x18\t \x03(\t\x12\x15\n\rdelivery_info\x18\n \x01(\t\"*\n\x0b\x44\x65tailBlock\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\xc2\x02\n\rProductDetail\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\nsale_price\x18\x03 \x01(\x05\x12\x16\n\x0eoriginal_price\x18\x04 \x01(\x05\x12\x15\n\rdiscount_rate\x18\x05 \x01(\x05\x12\x11\n\timage_url\x18\x06 \x01(\t\x12\x12\n\ndetail_url\x18\x07 \x01(\t\x12\x15\n\rcategory_code\x18\x08 \x01(\t\x12\x15\n\rcategory_name\x18\t \x01(\t\x12\x0f\n\x07targets\x18\n \x03(\t\x12\x15\n\rdelivery_info\x18\x0b \x01(\t\x12+\n\rdetail_blocks\x18\x0c \x03(\x0b\x32\x14.product.DetailBlock\x12\x0e\n\x06status\x18\r \x01(\t\x12\x12\n\ncrawled_at\x18\x0e \x01(\t2\xf7\x01\n\x0eProductService\x12K\n\x0cListProducts\x12\x1c.product.ListProductsRequest\x1a\x1d.product.ListProductsResponse\x12\x45\n\nGetProduct\x12\x1a.product.GetProductRequest\x1a\x1b.product.GetProductResponse\x12Q\n\x0eListCategories\x12\x1e.product.ListCategoriesRequest\x1a\x1f.product.ListCategoriesResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rproduct.proto\x12\x07product\"n\n\x13ListProductsRequest\x12\x0e\n\x06target\x18\x01 \x01(\t\x12\x15\n\rcategory_code\x18\x02 \x01(\t\x12\x0c\n\x04page\x18\x03 \x01(\x05\x12\x11\n\tpage_size\x18\x04 \x01(\x05\x12\x0f\n\x07sort_by\x18\x05 \x01(\t\"q\n\x14ListProductsResponse\x12)\n\x08products\x18\x01 \x03(\x0b\x32\x17.product.ProductSummary\x12\r\n\x05total\x18\x02 \x01(\x05\x12\x0c\n\x04page\x18\x03 \x01(\x05\x12\x11\n\tpage_size\x18\x04 \x01(\x05\"\'\n\x11GetProductRequest\x12\x12\n\nproduct_id\x18\x01 \x01(\t\"L\n\x12GetProductResponse\x12\'\n\x07product\x18\x01 \x01(\x0b\x32\x16.product.ProductDetail\x12\r\n\x05\x66ound\x18\x02 \x01(\x08\"5\n\x08\x43\x61tegory\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05\x63ount\x18\x03 \x01(\x05\"\'\n\x15ListCategoriesRequest\x12\x0e\n\x06target\x18\x01 \x01(\t\"?\n\x16ListCategoriesResponse\x12%\n\ncategories\x18\x01 \x03(\x0b\x32\x11.product.Category\"\xed\x01\n\x0eProductSummary\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\nsale_price\x18\x03 \x01(\x05\x12\x16\n\x0eoriginal_price\x18\x04 \x01(\x05\x12\x15\n\rdiscount_rate\x18\x05 \x01(\x05\x12\x11\n\timage_url\x18\x06 \x01(\t\x12\x15\n\rcategory_code\x18\x07 \x01(\t\x12\x15\n\rcategory_name\x18\x08 \x01(\t\x12\x0f\n\x07targets\x18\t \x03(\t\x12\x15\n\rdelivery_info\x18\n \x01(\t\x12\r\n\x05stock\x18\x0b \x01(\x05\"*\n\x0b\x44\x65tailBlock\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\xd1\x02\n\rProductDetail\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\nsale_price\x18\x03 \x01(\x05\x12\x16\n\x0eoriginal_price\x18\x04 \x01(\x05\x12\x15\n\rdiscount_rate\x18\x05 \x01(\x05\x12\x11\n\timage_url\x18\x06 \x01(\t\x12\x12\n\ndetail_url\x18\x07 \x01(\t\x12\x15\n\rcategory_code\x18\x08 \x01(\t\x12\x15\n\rcategory_name\x18\t \x01(\t\x12\x0f\n\x07targets\x18\n \x03(\t\x12\x15\n\rdelivery_info\x18\x0b \x01(\t\x12+\n\rdetail_blocks\x18\x0c \x03(\x0b\x32\x14.product.DetailBlock\x12\x0e\n\x06status\x18\r \x01(\t\x12\x12\n\ncrawled_at\x18\x0e \x01(\t\x12\r\n\x05stock\x18\x0f \x01(\x05\"7\n\x12UpdateStockRequest\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\r\n\x05stock\x18\x02 \x01(\x05\"&\n\x13UpdateStockResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\"*\n\x14\x44\x65leteProductRequest\x12\x12\n\nproduct_id\x18\x01 \x01(\t\"(\n\x15\x44\x65leteProductResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\"=\n\x15\x44\x65\x63rementStockRequest\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x10\n\x08quantity\x18\x02 \x01(\x05\">\n\x16\x44\x65\x63rementStockResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x13\n\x0bstock_after\x18\x02 \x01(\x05\"=\n\x15IncrementStockRequest\x12\x12\n\nproduct_id\x18\x01 \x01(\t\x12\x10\n\x08quantity\x18\x02 \x01(\x05\">\n\x16IncrementStockResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x13\n\x0bstock_after\x18\x02 \x01(\x05\x32\xb7\x04\n\x0eProductService\x12K\n\x0cListProducts\x12\x1c.product.ListProductsRequest\x1a\x1d.product.ListProductsResponse\x12\x45\n\nGetProduct\x12\x1a.product.GetProductRequest\x1a\x1b.product.GetProductResponse\x12Q\n\x0eListCategories\x12\x1e.product.ListCategoriesRequest\x1a\x1f.product.ListCategoriesResponse\x12H\n\x0bUpdateStock\x12\x1b.product.UpdateStockRequest\x1a\x1c.product.UpdateStockResponse\x12N\n\rDeleteProduct\x12\x1d.product.DeleteProductRequest\x1a\x1e.product.DeleteProductResponse\x12Q\n\x0e\x44\x65\x63rementStock\x12\x1e.product.DecrementStockRequest\x1a\x1f.product.DecrementStockResponse\x12Q\n\x0eIncrementStock\x12\x1e.product.IncrementStockRequest\x1a\x1f.product.IncrementStockResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -46,11 +46,27 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_LISTCATEGORIESRESPONSE']._serialized_start=468
   _globals['_LISTCATEGORIESRESPONSE']._serialized_end=531
   _globals['_PRODUCTSUMMARY']._serialized_start=534
-  _globals['_PRODUCTSUMMARY']._serialized_end=756
-  _globals['_DETAILBLOCK']._serialized_start=758
-  _globals['_DETAILBLOCK']._serialized_end=800
-  _globals['_PRODUCTDETAIL']._serialized_start=803
-  _globals['_PRODUCTDETAIL']._serialized_end=1125
-  _globals['_PRODUCTSERVICE']._serialized_start=1128
-  _globals['_PRODUCTSERVICE']._serialized_end=1375
+  _globals['_PRODUCTSUMMARY']._serialized_end=771
+  _globals['_DETAILBLOCK']._serialized_start=773
+  _globals['_DETAILBLOCK']._serialized_end=815
+  _globals['_PRODUCTDETAIL']._serialized_start=818
+  _globals['_PRODUCTDETAIL']._serialized_end=1155
+  _globals['_UPDATESTOCKREQUEST']._serialized_start=1157
+  _globals['_UPDATESTOCKREQUEST']._serialized_end=1212
+  _globals['_UPDATESTOCKRESPONSE']._serialized_start=1214
+  _globals['_UPDATESTOCKRESPONSE']._serialized_end=1252
+  _globals['_DELETEPRODUCTREQUEST']._serialized_start=1254
+  _globals['_DELETEPRODUCTREQUEST']._serialized_end=1296
+  _globals['_DELETEPRODUCTRESPONSE']._serialized_start=1298
+  _globals['_DELETEPRODUCTRESPONSE']._serialized_end=1338
+  _globals['_DECREMENTSTOCKREQUEST']._serialized_start=1340
+  _globals['_DECREMENTSTOCKREQUEST']._serialized_end=1401
+  _globals['_DECREMENTSTOCKRESPONSE']._serialized_start=1403
+  _globals['_DECREMENTSTOCKRESPONSE']._serialized_end=1465
+  _globals['_INCREMENTSTOCKREQUEST']._serialized_start=1467
+  _globals['_INCREMENTSTOCKREQUEST']._serialized_end=1528
+  _globals['_INCREMENTSTOCKRESPONSE']._serialized_start=1530
+  _globals['_INCREMENTSTOCKRESPONSE']._serialized_end=1592
+  _globals['_PRODUCTSERVICE']._serialized_start=1595
+  _globals['_PRODUCTSERVICE']._serialized_end=2162
 # @@protoc_insertion_point(module_scope)

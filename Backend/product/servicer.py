@@ -21,6 +21,7 @@ def _doc_to_summary(doc: dict) -> product_pb2.ProductSummary:
         category_name=doc.get("category_name") or "",
         targets=doc.get("targets") or [],
         delivery_info=doc.get("delivery_info") or "",
+        stock=doc.get("stock") if doc.get("stock") is not None else 100,
     )
 
 
@@ -44,6 +45,7 @@ def _doc_to_detail(doc: dict) -> product_pb2.ProductDetail:
         detail_blocks=blocks,
         status=doc.get("status") or "",
         crawled_at=doc.get("crawled_at") or "",
+        stock=doc.get("stock") if doc.get("stock") is not None else 100,
     )
 
 
@@ -81,13 +83,23 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
             "price_desc":    {"sale_price": -1},
             "discount_desc": {"discount_rate": -1},
         }
+        # sort_by 미지정 시 인기순 기본 적용
+        if not sort_by:
+            sort_by = "rank"
+
         if sort_by == "rank":
-            rank_field = "best_rank" if target == "best" else \
-                         "sales_rank" if target == "sales" else "best_rank"
-            # 랭크 없는 상품은 999999로 대체해 순위 있는 상품 뒤로 밀어낸다
-            # (MongoDB ascending sort에서 null/missing은 숫자보다 앞에 오기 때문)
+            if target == "best":
+                rank_expr = {"$ifNull": ["$best_rank", 999999]}
+            elif target == "sales":
+                rank_expr = {"$ifNull": ["$sales_rank", 999999]}
+            else:
+                # 전체 탭: best_rank / sales_rank 중 더 높은 순위(작은 숫자) 사용
+                rank_expr = {"$min": [
+                    {"$ifNull": ["$best_rank",  999999]},
+                    {"$ifNull": ["$sales_rank", 999999]},
+                ]}
             sort_stage = {
-                "_add": {"$addFields": {"_rank_sort": {"$ifNull": [f"${rank_field}", 999999]}}},
+                "_add": {"$addFields": {"_rank_sort": rank_expr}},
                 "_sort": {"$sort": {"_rank_sort": 1}},
             }
         elif sort_by in _SORT:
@@ -132,21 +144,15 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
     def ListCategories(self, request, context):
         target = request.target  # 빈 문자열이면 전체
 
-        products_col = get_collection()
-        product_query = {"status": "ready"}
-        if target:
-            product_query["targets"] = target
-        existing_codes = set(products_col.distinct("category_code", product_query))
-
         cat_col = get_categories_collection()
         cat_query = {"target": target} if target else {}
-        docs = list(cat_col.find(cat_query, {"_id": 0, "code": 1, "name": 1, "count": 1}))
+        docs = list(cat_col.find(cat_query, {"_id": 0, "code": 1, "name": 1, "count": 1}).sort("name", 1))
 
         # 전체 탭은 best+sales 카테고리가 중복될 수 있으므로 code 기준 중복 제거
         seen = set()
         categories = []
         for d in docs:
-            if d["code"] in existing_codes and d["code"] not in seen:
+            if d["code"] not in seen:
                 seen.add(d["code"])
                 categories.append(product_pb2.Category(code=d["code"], name=d["name"], count=d.get("count", 0)))
 
@@ -162,3 +168,55 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
             return product_pb2.GetProductResponse(found=False)
         _log.info(f"상품 조회 - product_id={product_id}")
         return product_pb2.GetProductResponse(product=_doc_to_detail(doc), found=True)
+
+    def UpdateStock(self, request, context):
+        col = get_collection()
+        result = col.update_one(
+            {"product_id": request.product_id},
+            {"$set": {"stock": request.stock}},
+        )
+        # 해당 상품 캐시 무효화
+        from db import cache_delete_pattern
+        cache_delete_pattern(f"list:*")
+        _log.info(f"재고 수정 - product_id={request.product_id} stock={request.stock}")
+        return product_pb2.UpdateStockResponse(success=result.modified_count > 0)
+
+    def DeleteProduct(self, request, context):
+        col = get_collection()
+        result = col.delete_one({"product_id": request.product_id})
+        from db import cache_delete_pattern
+        cache_delete_pattern(f"list:*")
+        _log.info(f"상품 삭제 - product_id={request.product_id}")
+        return product_pb2.DeleteProductResponse(success=result.deleted_count > 0)
+
+    def DecrementStock(self, request, context):
+        col = get_collection()
+        # 재고 부족 시 실패 반환
+        result = col.find_one_and_update(
+            {"product_id": request.product_id, "stock": {"$gte": request.quantity}},
+            {"$inc": {"stock": -request.quantity}},
+            return_document=True,
+            projection={"stock": 1},
+        )
+        if not result:
+            _log.info(f"재고 부족 - product_id={request.product_id} quantity={request.quantity}")
+            return product_pb2.DecrementStockResponse(success=False, stock_after=0)
+        from db import cache_delete_pattern
+        cache_delete_pattern(f"list:*")
+        _log.info(f"재고 감소 - product_id={request.product_id} -{request.quantity} → {result['stock']}")
+        return product_pb2.DecrementStockResponse(success=True, stock_after=result["stock"])
+
+    def IncrementStock(self, request, context):
+        col = get_collection()
+        result = col.find_one_and_update(
+            {"product_id": request.product_id},
+            {"$inc": {"stock": request.quantity}},
+            return_document=True,
+            projection={"stock": 1},
+        )
+        if not result:
+            return product_pb2.IncrementStockResponse(success=False, stock_after=0)
+        from db import cache_delete_pattern
+        cache_delete_pattern(f"list:*")
+        _log.info(f"재고 복구 - product_id={request.product_id} +{request.quantity} → {result['stock']}")
+        return product_pb2.IncrementStockResponse(success=True, stock_after=result["stock"])

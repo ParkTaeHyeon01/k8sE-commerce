@@ -43,6 +43,9 @@ export default function ProductDetail() {
           {product.delivery_info && (
             <span className="delivery-tag">🚚 {product.delivery_info}</span>
           )}
+          <p className="stock-detail">
+            {product.stock > 0 ? `재고: ${product.stock}개` : <span className="soldout-text">품절</span>}
+          </p>
         </div>
       </div>
 

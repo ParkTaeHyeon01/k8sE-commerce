@@ -11,10 +11,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers import categories, products
+from routers import auth, me, cart, purchase, admin
 
 app = FastAPI(title="k8sE-commerce Gateway")
 
-# 프론트엔드(React dev server 포함)에서 호출 가능하도록 CORS 허용
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
@@ -22,8 +22,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(products.router, prefix="/products", tags=["products"])
-app.include_router(categories.router, prefix="/categories", tags=["categories"])
+app.include_router(products.router,    prefix="/products",    tags=["products"])
+app.include_router(categories.router,  prefix="/categories",  tags=["categories"])
+app.include_router(auth.router,        prefix="/auth",        tags=["auth"])
+app.include_router(me.router,          prefix="/me",          tags=["me"])
+app.include_router(cart.router,        prefix="/cart",        tags=["cart"])
+app.include_router(purchase.router,    tags=["purchase"])
+app.include_router(admin.router,       prefix="/admin",       tags=["admin"])
 
 
 @app.get("/health")

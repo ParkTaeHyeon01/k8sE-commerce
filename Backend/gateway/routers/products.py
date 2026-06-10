@@ -25,7 +25,7 @@ def list_products(
         page_size=page_size,
         sort_by=sort_by,
     ))
-    return MessageToDict(resp, preserving_proto_field_name=True)
+    return MessageToDict(resp, preserving_proto_field_name=True, always_print_fields_with_no_presence=True)
 
 
 @router.get("/{product_id}")
@@ -34,4 +34,4 @@ def get_product(product_id: str):
     resp = stub.GetProduct(product_pb2.GetProductRequest(product_id=product_id))
     if not resp.found:
         raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
-    return MessageToDict(resp.product, preserving_proto_field_name=True)
+    return MessageToDict(resp.product, preserving_proto_field_name=True, always_print_fields_with_no_presence=True)

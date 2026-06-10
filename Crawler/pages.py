@@ -14,8 +14,11 @@ COLLECTIONS = {
     },
 }
 
-# 프론트 메뉴로 노출할 식품 카테고리 (전체 30개 중 식품 15개)
+# 프론트 메뉴로 노출할 식품 카테고리
+# 전통주(251)는 베스트 컬렉션에서 2건만 존재하며 할인 컬렉션에는 없다
+# → 베스트 크롤러(FOOD_CATEGORIES)에만 포함, 할인 크롤러(SALES_FOOD_CATEGORIES)에는 제외
 FOOD_CATEGORIES = {
+    "251": "전통주",
     "907": "채소",
     "908": "과일·견과·쌀",
     "909": "수산·해산·건어물",
@@ -30,12 +33,13 @@ FOOD_CATEGORIES = {
     "018": "유제품",
     "032": "건강식품",
     "722": "와인·위스키·데낄라",
-    "251": "전통주",
 }
 
-# 세일 페이지에는 전통주(251) 카테고리가 없음 — 없는 카테고리로 필터링하면 무시되어
-# 엉뚱한 상품이 전통주 레이블로 저장되는 오염이 발생한다
+# 할인 컬렉션에는 전통주가 없으므로 제외
 SALES_FOOD_CATEGORIES = {k: v for k, v in FOOD_CATEGORIES.items() if k != "251"}
+
+# 식품 카테고리 코드 집합 — MongoDB에서 가져온 전체 카테고리를 필터링할 때 사용
+FOOD_CATEGORY_CODES = set(FOOD_CATEGORIES.keys())
 
 
 def build_url(target: str, category_code: str) -> str:

@@ -49,28 +49,69 @@ class ProductServiceStub:
                 request_serializer=product__pb2.ListCategoriesRequest.SerializeToString,
                 response_deserializer=product__pb2.ListCategoriesResponse.FromString,
                 _registered_method=True)
+        self.UpdateStock = channel.unary_unary(
+                '/product.ProductService/UpdateStock',
+                request_serializer=product__pb2.UpdateStockRequest.SerializeToString,
+                response_deserializer=product__pb2.UpdateStockResponse.FromString,
+                _registered_method=True)
+        self.DeleteProduct = channel.unary_unary(
+                '/product.ProductService/DeleteProduct',
+                request_serializer=product__pb2.DeleteProductRequest.SerializeToString,
+                response_deserializer=product__pb2.DeleteProductResponse.FromString,
+                _registered_method=True)
+        self.DecrementStock = channel.unary_unary(
+                '/product.ProductService/DecrementStock',
+                request_serializer=product__pb2.DecrementStockRequest.SerializeToString,
+                response_deserializer=product__pb2.DecrementStockResponse.FromString,
+                _registered_method=True)
+        self.IncrementStock = channel.unary_unary(
+                '/product.ProductService/IncrementStock',
+                request_serializer=product__pb2.IncrementStockRequest.SerializeToString,
+                response_deserializer=product__pb2.IncrementStockResponse.FromString,
+                _registered_method=True)
 
 
 class ProductServiceServicer:
     """Missing associated documentation comment in .proto file."""
 
     def ListProducts(self, request, context):
-        """상품 목록 조회 (카테고리/target 필터, 페이지네이션)
-        """
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def GetProduct(self, request, context):
-        """상품 상세 조회
-        """
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def ListCategories(self, request, context):
-        """카테고리 목록 조회 (category_crawler가 수집한 목록 반환)
-        """
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateStock(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteProduct(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DecrementStock(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def IncrementStock(self, request, context):
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -92,6 +133,26 @@ def add_ProductServiceServicer_to_server(servicer, server):
                     servicer.ListCategories,
                     request_deserializer=product__pb2.ListCategoriesRequest.FromString,
                     response_serializer=product__pb2.ListCategoriesResponse.SerializeToString,
+            ),
+            'UpdateStock': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateStock,
+                    request_deserializer=product__pb2.UpdateStockRequest.FromString,
+                    response_serializer=product__pb2.UpdateStockResponse.SerializeToString,
+            ),
+            'DeleteProduct': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteProduct,
+                    request_deserializer=product__pb2.DeleteProductRequest.FromString,
+                    response_serializer=product__pb2.DeleteProductResponse.SerializeToString,
+            ),
+            'DecrementStock': grpc.unary_unary_rpc_method_handler(
+                    servicer.DecrementStock,
+                    request_deserializer=product__pb2.DecrementStockRequest.FromString,
+                    response_serializer=product__pb2.DecrementStockResponse.SerializeToString,
+            ),
+            'IncrementStock': grpc.unary_unary_rpc_method_handler(
+                    servicer.IncrementStock,
+                    request_deserializer=product__pb2.IncrementStockRequest.FromString,
+                    response_serializer=product__pb2.IncrementStockResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -175,6 +236,114 @@ class ProductService:
             '/product.ProductService/ListCategories',
             product__pb2.ListCategoriesRequest.SerializeToString,
             product__pb2.ListCategoriesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateStock(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/product.ProductService/UpdateStock',
+            product__pb2.UpdateStockRequest.SerializeToString,
+            product__pb2.UpdateStockResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteProduct(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/product.ProductService/DeleteProduct',
+            product__pb2.DeleteProductRequest.SerializeToString,
+            product__pb2.DeleteProductResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DecrementStock(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/product.ProductService/DecrementStock',
+            product__pb2.DecrementStockRequest.SerializeToString,
+            product__pb2.DecrementStockResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def IncrementStock(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/product.ProductService/IncrementStock',
+            product__pb2.IncrementStockRequest.SerializeToString,
+            product__pb2.IncrementStockResponse.FromString,
             options,
             channel_credentials,
             insecure,
