@@ -2,12 +2,15 @@ import os
 import grpc
 import product_pb2_grpc
 import auth_pb2_grpc
+import payment_pb2_grpc
 
-_PRODUCT_ADDR = os.environ.get("PRODUCT_GRPC_ADDR", "localhost:50051")
-_AUTH_ADDR    = os.environ.get("AUTH_GRPC_ADDR",    "localhost:50052")
+_PRODUCT_ADDR = os.environ.get("PRODUCT_GRPC_ADDR",  "localhost:50051")
+_AUTH_ADDR    = os.environ.get("AUTH_GRPC_ADDR",     "localhost:50052")
+_PAYMENT_ADDR = os.environ.get("PAYMENT_GRPC_ADDR",  "localhost:50053")
 
 _product_channel: grpc.Channel | None = None
 _auth_channel:    grpc.Channel | None = None
+_payment_channel: grpc.Channel | None = None
 
 
 def get_product_stub() -> product_pb2_grpc.ProductServiceStub:
@@ -22,3 +25,10 @@ def get_auth_stub() -> auth_pb2_grpc.AuthServiceStub:
     if _auth_channel is None:
         _auth_channel = grpc.insecure_channel(_AUTH_ADDR)
     return auth_pb2_grpc.AuthServiceStub(_auth_channel)
+
+
+def get_payment_stub() -> payment_pb2_grpc.PaymentServiceStub:
+    global _payment_channel
+    if _payment_channel is None:
+        _payment_channel = grpc.insecure_channel(_PAYMENT_ADDR)
+    return payment_pb2_grpc.PaymentServiceStub(_payment_channel)
