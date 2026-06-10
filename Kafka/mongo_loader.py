@@ -10,6 +10,18 @@ from datetime import datetime, timezone
 
 from pymongo import MongoClient
 
+
+def _make_ngrams(text: str, min_n: int = 2, max_n: int = 4) -> list:
+    tokens = set()
+    for word in text.split():
+        if not word:
+            continue
+        tokens.add(word)
+        for n in range(min_n, min(max_n + 1, len(word) + 1)):
+            for i in range(len(word) - n + 1):
+                tokens.add(word[i:i+n])
+    return list(tokens)
+
 _MONGODB_URI = os.environ["MONGODB_URI"]
 _MONGODB_DB = os.environ.get("MONGODB_DB", "ecommerce")
 _COLLECTION_NAME = "products"
@@ -67,6 +79,8 @@ def upsert_product(collection, product: dict) -> None:
     """
     set_fields = {key: product[key] for key in _SET_FIELDS if key in product}
     set_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+    if "name" in product:
+        set_fields["ngrams"] = _make_ngrams(product["name"])
 
     set_on_insert = {key: product[key] for key in _SET_ON_INSERT_FIELDS if key in product}
 

@@ -84,11 +84,16 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
             search_by = request.search_by or ""
             if search_by == "id":
                 query["product_id"] = search
-            elif search_by == "name" or re.fullmatch(r"\d+", search):
-                # 관리자 상품명 검색 또는 숫자 단독 ($text는 숫자 토큰 인덱싱 안 함)
+            elif search_by == "name":
+                # 관리자 상품명 검색: $regex 부분 문자열
                 query["name"] = {"$regex": re.escape(search), "$options": "i"}
             else:
-                query["$text"] = {"$search": search}
+                # 상품 목록 검색: ngrams 배열 인덱스 (부분 문자열 + 키워드 지원)
+                tokens = search.split()
+                if len(tokens) == 1:
+                    query["ngrams"] = tokens[0]
+                else:
+                    query["ngrams"] = {"$all": tokens}
 
         # count + find 를 $facet 한 번으로 합쳐 MongoDB 왕복 1회 절감
         _SORT = {
@@ -106,13 +111,7 @@ class ProductServicer(product_pb2_grpc.ProductServiceServicer):
             "stock_desc":      {"stock": -1},
         }
 
-        if search and not sort_by and "$text" in query:
-            # $text 검색일 때만 textScore 정렬 ($regex/$exact에는 사용 불가)
-            sort_stage = {
-                "_add": {"$addFields": {"_score": {"$meta": "textScore"}}},
-                "_sort": {"$sort": {"_score": -1}},
-            }
-        elif not sort_by:
+        if not sort_by:
             sort_by = "rank"
             if target == "best":
                 rank_expr = {"$ifNull": ["$best_rank", 999999]}

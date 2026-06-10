@@ -36,6 +36,7 @@ def get_collection():
         col = _mongo_client[_MONGODB_DB]["products"]
         # 목록 쿼리 필터 필드에 복합 인덱스 — 최초 연결 시 1회 생성
         col.create_index([("status", 1), ("targets", 1), ("category_code", 1)])
+        col.create_index("ngrams")  # nGram 배열 인덱스 — 부분 문자열 검색용
     return _mongo_client[_MONGODB_DB]["products"]
 
 
