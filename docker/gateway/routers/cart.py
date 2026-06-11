@@ -9,17 +9,26 @@ import product_pb2
 
 router = APIRouter()
 
-_REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-_CART_TTL  = 60 * 60 * 24 * 7  # 7일
+_REDIS_WRITE_URL = os.environ.get("REDIS_WRITE_URL", "redis://localhost:6379/0")
+_REDIS_READ_URL  = os.environ.get("REDIS_READ_URL",  "redis://localhost:6379/0")
+_CART_TTL        = 60 * 60 * 24 * 7  # 7일
 
-_redis_client = None
+_redis_write_client = None
+_redis_read_client  = None
 
 
-def _get_redis():
-    global _redis_client
-    if _redis_client is None:
-        _redis_client = redis.from_url(_REDIS_URL, decode_responses=True, protocol=2)
-    return _redis_client
+def _get_write_redis():
+    global _redis_write_client
+    if _redis_write_client is None:
+        _redis_write_client = redis.from_url(_REDIS_WRITE_URL, decode_responses=True, protocol=2)
+    return _redis_write_client
+
+
+def _get_read_redis():
+    global _redis_read_client
+    if _redis_read_client is None:
+        _redis_read_client = redis.from_url(_REDIS_READ_URL, decode_responses=True, protocol=2)
+    return _redis_read_client
 
 
 def _cart_key(user_id: int) -> str:
@@ -27,12 +36,12 @@ def _cart_key(user_id: int) -> str:
 
 
 def _get_cart(user_id: int) -> dict:
-    raw = _get_redis().get(_cart_key(user_id))
+    raw = _get_read_redis().get(_cart_key(user_id))
     return json.loads(raw) if raw else {}
 
 
 def _save_cart(user_id: int, cart: dict):
-    _get_redis().setex(_cart_key(user_id), _CART_TTL, json.dumps(cart))
+    _get_write_redis().setex(_cart_key(user_id), _CART_TTL, json.dumps(cart))
 
 
 @router.get("")
@@ -124,5 +133,5 @@ def remove_from_cart(product_id: str, request: Request):
 @router.delete("")
 def clear_cart(request: Request):
     user = get_current_user(request)
-    _get_redis().delete(_cart_key(user["user_id"]))
+    _get_write_redis().delete(_cart_key(user["user_id"]))
     return {"success": True}

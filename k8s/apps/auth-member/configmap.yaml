@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-member-config
+  namespace: backend-ns
+data:
+  MARIADB_HOST:   "mariadb-svc.mariadb-ns.svc.cluster.local"
+  MARIADB_USER:   "root"
+  MARIADB_DB:     "ecommerce"
+  AUTH_GRPC_PORT: "50052"

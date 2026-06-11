@@ -7,12 +7,14 @@ import redis
 from pymongo import MongoClient
 
 _mongo_client: MongoClient | None = None
-_redis_client: redis.Redis | None = None
+_redis_write: redis.Redis | None = None
+_redis_read:  redis.Redis | None = None
 
-_MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/")
-_MONGODB_DB  = os.environ.get("MONGODB_DB", "ecommerce")
-_REDIS_URL   = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-_CACHE_TTL   = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
+_MONGODB_URI      = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/")
+_MONGODB_DB       = os.environ.get("MONGODB_DB", "ecommerce")
+_REDIS_WRITE_URL  = os.environ.get("REDIS_WRITE_URL", "redis://localhost:6379/0")
+_REDIS_READ_URL   = os.environ.get("REDIS_READ_URL",  "redis://localhost:6379/0")
+_CACHE_TTL        = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
 
 # 프로세스 내 1차 캐시 — Redis보다 빠름, 재시작 시 초기화
 _mem: dict = {}
@@ -47,11 +49,18 @@ def get_categories_collection():
     return _mongo_client[_MONGODB_DB]["categories"]
 
 
-def get_redis() -> redis.Redis:
-    global _redis_client
-    if _redis_client is None:
-        _redis_client = redis.from_url(_REDIS_URL, decode_responses=True, socket_connect_timeout=1, protocol=2)
-    return _redis_client
+def get_write_redis() -> redis.Redis:
+    global _redis_write
+    if _redis_write is None:
+        _redis_write = redis.from_url(_REDIS_WRITE_URL, decode_responses=True, socket_connect_timeout=1, protocol=2)
+    return _redis_write
+
+
+def get_read_redis() -> redis.Redis:
+    global _redis_read
+    if _redis_read is None:
+        _redis_read = redis.from_url(_REDIS_READ_URL, decode_responses=True, socket_connect_timeout=1, protocol=2)
+    return _redis_read
 
 
 def cache_get(key: str) -> dict | list | None:
@@ -61,7 +70,7 @@ def cache_get(key: str) -> dict | list | None:
         return hit
     # 2차: Redis
     try:
-        raw = get_redis().get(key)
+        raw = get_read_redis().get(key)
         if raw:
             val = json.loads(raw)
             _mem_set(key, val)
@@ -74,7 +83,7 @@ def cache_get(key: str) -> dict | list | None:
 def cache_set(key: str, value: dict | list) -> None:
     _mem_set(key, value)
     try:
-        get_redis().setex(key, _CACHE_TTL, json.dumps(value, ensure_ascii=False))
+        get_write_redis().setex(key, _CACHE_TTL, json.dumps(value, ensure_ascii=False))
     except Exception:
         pass
 
@@ -83,7 +92,7 @@ def cache_delete_pattern(pattern: str) -> None:
     # 인메모리 캐시 전체 초기화 (패턴 매칭 비용보다 단순 초기화가 빠름)
     _mem.clear()
     try:
-        r = get_redis()
+        r = get_write_redis()
         keys = r.keys(pattern)
         if keys:
             r.delete(*keys)

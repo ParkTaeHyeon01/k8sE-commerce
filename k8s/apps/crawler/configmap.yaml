@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crawler-best-config
+  namespace: crawler-ns
+data:
+  CRAWL_TARGET:             "best"
+  KAFKA_BOOTSTRAP_SERVERS:  "kafka-svc.kafka-ns.svc.cluster.local:9092"
+  KAFKA_PRODUCT_TOPIC:      "crawled-products"
+  MONGODB_DB:               "ecommerce"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crawler-sales-config
+  namespace: crawler-ns
+data:
+  CRAWL_TARGET:             "sales"
+  KAFKA_BOOTSTRAP_SERVERS:  "kafka-svc.kafka-ns.svc.cluster.local:9092"
+  KAFKA_PRODUCT_TOPIC:      "crawled-products"
+  MONGODB_DB:               "ecommerce"

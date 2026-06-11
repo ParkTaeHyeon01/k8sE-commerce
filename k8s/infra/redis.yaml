@@ -1,0 +1,17 @@
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-svc
+  namespace: redis-ns
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: redis:7.0
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 5Gi

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-consumer-config
+  namespace: kafka-consumer-ns
+data:
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-svc.kafka-ns.svc.cluster.local:9092"
+  KAFKA_PRODUCT_TOPIC:     "crawled-products"
+  KAFKA_CONSUMER_GROUP:    "product-loader"
+  MONGODB_DB:              "ecommerce"
+  REDIS_WRITE_URL:         "redis://redis-svc-master.redis-ns.svc.cluster.local:6379/0"

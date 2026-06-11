@@ -16,7 +16,7 @@ from confluent_kafka import Consumer
 from logger import get_logger
 from mongo_loader import get_collection, sync_targets, upsert_product
 
-_REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+_REDIS_WRITE_URL = os.environ.get("REDIS_WRITE_URL", "redis://localhost:6379/0")
 
 _BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 _TOPIC = os.environ.get("KAFKA_PRODUCT_TOPIC", "crawled-products")
@@ -33,7 +33,7 @@ _CONSUMER_CONFIG = {
 def flush_product_cache(logger) -> None:
     """배치 완료 후 product 서버의 목록 캐시를 무효화한다."""
     try:
-        r = redis.from_url(_REDIS_URL, decode_responses=True, socket_connect_timeout=1)
+        r = redis.from_url(_REDIS_WRITE_URL, decode_responses=True, socket_connect_timeout=1)
         keys = r.keys("list:*")
         if keys:
             r.delete(*keys)

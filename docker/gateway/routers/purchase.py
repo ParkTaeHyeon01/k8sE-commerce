@@ -4,7 +4,7 @@ import grpc
 import payment_pb2
 from grpc_client import get_payment_stub
 from auth_middleware import get_current_user
-from routers.cart import _get_cart, _get_redis, _cart_key
+from routers.cart import _get_cart, _get_write_redis, _cart_key
 
 router = APIRouter()
 
@@ -33,7 +33,7 @@ def checkout(body: CheckoutBody, request: Request):
         raise HTTPException(status_code=400, detail=res.message)
 
     # 결제 성공 시 장바구니 비우기 (Redis는 gateway에서 관리)
-    _get_redis().delete(_cart_key(user_id))
+    _get_write_redis().delete(_cart_key(user_id))
 
     return {
         "success":      True,
