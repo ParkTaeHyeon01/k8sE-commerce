@@ -5,7 +5,7 @@ metadata:
   namespace: crawler-ns
 data:
   CRAWL_TARGET:             "best"
-  KAFKA_BOOTSTRAP_SERVERS:  "kafka-svc.kafka-ns.svc.cluster.local:9092"
+  KAFKA_BOOTSTRAP_SERVERS:  "kafka-kafka-bootstrap.kafka-ns.svc.cluster.local:9092"
   KAFKA_PRODUCT_TOPIC:      "crawled-products"
   MONGODB_DB:               "ecommerce"
 ---
@@ -16,6 +16,6 @@ metadata:
   namespace: crawler-ns
 data:
   CRAWL_TARGET:             "sales"
-  KAFKA_BOOTSTRAP_SERVERS:  "kafka-svc.kafka-ns.svc.cluster.local:9092"
+  KAFKA_BOOTSTRAP_SERVERS:  "kafka-kafka-bootstrap.kafka-ns.svc.cluster.local:9092"
   KAFKA_PRODUCT_TOPIC:      "crawled-products"
   MONGODB_DB:               "ecommerce"
