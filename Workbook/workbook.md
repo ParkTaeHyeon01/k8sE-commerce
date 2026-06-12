@@ -15,6 +15,7 @@ k8s CI/CD 시연을 목적으로 한 MSA 구조의 MVP 프로젝트.
 6. [백엔드](#6-백엔드)
 7. [프론트엔드](#7-프론트엔드)
 8. [전체 실행 순서](#8-전체-실행-순서)
+9. [k8s 배포](#9-k8s-배포)
 
 ---
 
@@ -26,16 +27,21 @@ k8s CI/CD 시연을 목적으로 한 MSA 구조의 MVP 프로젝트.
 [마켓컬리]
     │  Playwright 크롤링
     ▼
-[Crawler] ──Kafka Producer──▶ [Kafka] ──Consumer──▶ [MongoDB]
-                                                          │
-[rank_updater] ─────────────────────────────────────────▶│ (best_rank / sales_rank 갱신)
-[category_crawler] ──────────────────────────────────────▶│ (categories 컬렉션)
-                                                          │
-                                              [Product gRPC 서버]
-                                                          │ gRPC
-                                              [Gateway FastAPI]
-                                                          │ REST/JSON
-                                              [Frontend React]
+[Crawler] ──Kafka Producer──▶ [Kafka Broker] ──Consumer──▶ [Kafka Consumer]
+                                                                    │
+[rank_updater] ─────────────────────────────────────────────────▶  │ → MongoDB
+[category_crawler] ──────────────────────────────────────────────▶ │ → MongoDB
+                                                                    ▼
+                                                              [MongoDB]
+                                                                    │
+                                                       [Product gRPC 서버 :50051]
+                                                                    │ gRPC
+                                        [Auth-Member gRPC 서버 :50052] ─── [MariaDB]
+                                        [Payment gRPC 서버 :50053]   ─── (MariaDB/포인트)
+                                                                    │
+                                                       [Gateway FastAPI :8000]
+                                                                    │ REST/JSON
+                                                       [Frontend React :5173]
 ```
 
 ### 기술 스택
@@ -50,7 +56,9 @@ k8s CI/CD 시연을 목적으로 한 MSA 구조의 MVP 프로젝트.
 | 백엔드 통신 | gRPC | 서비스 간 내부 통신 |
 | API Gateway | FastAPI | REST → gRPC 변환 (BFF) |
 | 프론트엔드 | React + Vite | 상품 목록/상세 UI |
-| 인프라 | Kubernetes + ArgoCD | 컨테이너 오케스트레이션 |
+| 인프라 | Kubernetes + GitLab CI | 컨테이너 오케스트레이션 + CI/CD |
+| 스토리지 | Longhorn | k8s 퍼시스턴트 볼륨 (3-replica) |
+| 서비스 메시 | Istio | 트래픽 제어, mTLS, 진입 게이트웨이 |
 
 ### 서비스 구성
 
@@ -67,8 +75,9 @@ k8s CI/CD 시연을 목적으로 한 MSA 구조의 MVP 프로젝트.
 | 서비스 | 포트 | DB |
 |--------|------|----|
 | product gRPC 서버 | 50051 | MongoDB |
-| gateway FastAPI | 8000 | - (gRPC 경유) |
-| auth-member (예정) | 50052 | MariaDB |
+| auth-member gRPC 서버 | 50052 | MariaDB |
+| payment gRPC 서버 | 50053 | MariaDB (포인트 차감) |
+| gateway FastAPI | 8000 | - (gRPC 경유, Redis 캐시) |
 
 **크롤 대상**
 - **베스트(best)**: `kurly.com/collection-groups/market-best`
@@ -204,8 +213,9 @@ KAFKA_CONSUMER_GROUP=product-loader
 MONGODB_URI=mongodb://localhost:27017/
 MONGODB_DB=ecommerce
 
-# Redis
-REDIS_URL=redis://localhost:6379/0
+# Redis (로컬 개발: 읽기/쓰기 동일 서버 사용)
+REDIS_WRITE_URL=redis://localhost:6379/0
+REDIS_READ_URL=redis://localhost:6379/0
 CACHE_TTL_SECONDS=60
 
 # Product gRPC 서버
@@ -554,3 +564,147 @@ cd Frontend; npm run dev
 | Product gRPC | 50051 |
 | Gateway REST | 8000 |
 | Frontend | 5173 |
+
+---
+
+## 9. k8s 배포
+
+### 클러스터 구성
+
+| 구성 | 내용 |
+|------|------|
+| 노드 | master 1 + worker 3 (총 4대) |
+| k8s 버전 | 1.31.9 |
+| OS | Ubuntu 24.04 |
+| CNI | Calico |
+| LoadBalancer | MetalLB |
+| 스토리지 | Longhorn |
+| 서비스 메시 | Istio |
+| 백업 | Velero + MinIO |
+
+### 네임스페이스 구조
+
+```
+frontend-ns       → Frontend (React)
+gateway-ns        → Gateway (FastAPI)
+backend-ns        → product / auth-member / payment gRPC 서버
+kafka-consumer-ns → Kafka Consumer
+crawler-ns        → Crawler (CronJob)
+kafka-ns          → Kafka Broker (인프라)
+mariadb-ns        → MariaDB
+mongodb-ns        → MongoDB
+redis-ns          → Redis
+```
+
+### Step 1. 네임스페이스 생성
+
+```bash
+kubectl apply -f k8s/namespaces.yaml
+kubectl get ns
+```
+
+### Step 2. MongoDB Community Operator 설치
+
+```bash
+helm repo add mongodb https://mongodb.github.io/helm-charts
+helm repo update
+helm install community-operator mongodb/community-operator --namespace mongodb-ns
+```
+
+설치 확인:
+```bash
+kubectl get pods -n mongodb-ns
+```
+
+### Step 3. Redis OT Operator 설치
+
+```bash
+helm repo add ot-helm https://ot-container-kit.github.io/helm-charts
+helm repo update
+helm install redis-operator ot-helm/redis-operator --namespace redis-ns
+```
+
+설치 확인:
+```bash
+kubectl get pods -n redis-ns
+```
+
+### Step 4. DB 인프라 적용
+
+```bash
+kubectl apply -f k8s/infra/mariadb.yaml
+kubectl apply -f k8s/infra/mongodb.yaml
+kubectl apply -f k8s/infra/redis.yaml
+```
+
+상태 확인:
+```bash
+# MariaDB
+kubectl get statefulset -n mariadb-ns
+kubectl get pvc -n mariadb-ns
+
+# MongoDB (3대 ReplicaSet)
+kubectl get mongodbcommunity -n mongodb-ns
+kubectl get pods -n mongodb-ns
+
+# Redis (1 master + 2 follower)
+kubectl get redisreplication -n redis-ns
+kubectl get pods -n redis-ns
+```
+
+### DB 접속 정보
+
+| DB | 사용자 | 비밀번호 | DB명 |
+|----|--------|----------|------|
+| MariaDB | kevin | k8spass# | ecommerce |
+| MongoDB | kevin | k8spass# | ecommerce |
+| Redis | - | k8spass# | - |
+
+> URI의 `#`은 `%23`으로 URL 인코딩  
+> 예: `mongodb://kevin:k8spass%23@mongodb-svc.mongodb-ns.svc.cluster.local:27017/?authSource=ecommerce`
+
+### Redis 읽기/쓰기 분리
+
+| 용도 | 서비스명 | 설명 |
+|------|----------|------|
+| 쓰기 | `redis-svc-master.redis-ns` | INSERT / DELETE |
+| 읽기 | `redis-svc-follower.redis-ns` | GET (캐시 조회) |
+
+### Step 5. 앱 ConfigMap / Secret 적용
+
+```bash
+kubectl apply -f k8s/apps/product/
+kubectl apply -f k8s/apps/gateway/
+kubectl apply -f k8s/apps/auth-member/
+kubectl apply -f k8s/apps/kafka-consumer/
+kubectl apply -f k8s/apps/crawler/
+```
+
+### Step 6. Deployment / Service 적용 (준비 중)
+
+```bash
+kubectl apply -f k8s/apps/product/deployment.yaml
+kubectl apply -f k8s/apps/gateway/deployment.yaml
+# ... 각 서비스
+```
+
+### Step 7. Istio Gateway / HTTPRoute 적용 (준비 중)
+
+```bash
+kubectl apply -f k8s/istio/gateway.yaml
+kubectl apply -f k8s/istio/httproutes/
+```
+
+### FQDN 패턴
+
+클러스터 내부 서비스 주소:
+
+```
+{서비스명}.{네임스페이스}.svc.cluster.local:{포트}
+
+예)
+mongodb-svc.mongodb-ns.svc.cluster.local:27017
+redis-svc-master.redis-ns.svc.cluster.local:6379
+mariadb-svc.mariadb-ns.svc.cluster.local:3306
+product-svc.backend-ns.svc.cluster.local:50051
+```
