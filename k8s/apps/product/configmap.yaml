@@ -9,3 +9,4 @@ data:
   REDIS_READ_URL:     "redis://:k8spass%23@redis-svc-follower.redis-ns.svc.cluster.local:6379/0"
   CACHE_TTL_SECONDS:  "300"
   PRODUCT_GRPC_PORT:  "50051"
+  TZ:                 "Asia/Seoul"

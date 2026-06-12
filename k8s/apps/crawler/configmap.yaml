@@ -8,6 +8,7 @@ data:
   KAFKA_BOOTSTRAP_SERVERS:  "kafka-kafka-bootstrap.kafka-ns.svc.cluster.local:9092"
   KAFKA_PRODUCT_TOPIC:      "crawled-products"
   MONGODB_DB:               "ecommerce"
+  TZ:                       "Asia/Seoul"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -19,3 +20,4 @@ data:
   KAFKA_BOOTSTRAP_SERVERS:  "kafka-kafka-bootstrap.kafka-ns.svc.cluster.local:9092"
   KAFKA_PRODUCT_TOPIC:      "crawled-products"
   MONGODB_DB:               "ecommerce"
+  TZ:                       "Asia/Seoul"

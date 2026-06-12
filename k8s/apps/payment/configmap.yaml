@@ -7,3 +7,4 @@ data:
   AUTH_GRPC_ADDR:    "auth-member-svc.backend-ns.svc.cluster.local:50052"
   PRODUCT_GRPC_ADDR: "product-svc.backend-ns.svc.cluster.local:50051"
   PAYMENT_GRPC_PORT: "50053"
+  TZ:                "Asia/Seoul"

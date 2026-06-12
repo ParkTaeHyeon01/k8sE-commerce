@@ -8,3 +8,4 @@ data:
   MARIADB_USER:   "kevin"
   MARIADB_DB:     "ecommerce"
   AUTH_GRPC_PORT: "50052"
+  TZ:             "Asia/Seoul"

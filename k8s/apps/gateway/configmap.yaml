@@ -11,3 +11,4 @@ data:
   REDIS_READ_URL:     "redis://:k8spass%23@redis-svc-follower.redis-ns.svc.cluster.local:6379/0"
   MONGODB_DB:         "ecommerce"
   CORS_ORIGINS:       "http://frontend-svc.frontend-ns.svc.cluster.local"
+  TZ:                 "Asia/Seoul"

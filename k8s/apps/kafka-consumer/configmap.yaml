@@ -9,3 +9,4 @@ data:
   KAFKA_CONSUMER_GROUP:    "product-loader"
   MONGODB_DB:              "ecommerce"
   REDIS_WRITE_URL:         "redis://:k8spass%23@redis-svc-master.redis-ns.svc.cluster.local:6379/0"
+  TZ:                      "Asia/Seoul"
