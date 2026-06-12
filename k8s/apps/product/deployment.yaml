@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product
+  namespace: backend-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product
+  template:
+    metadata:
+      labels:
+        app: product
+    spec:
+      containers:
+      - name: product
+        image: 192.168.0.54/ecommerce/product:latest
+        ports:
+        - containerPort: 50051
+        envFrom:
+        - configMapRef:
+            name: product-config
+        - secretRef:
+            name: product-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-svc
+  namespace: backend-ns
+spec:
+  selector:
+    app: product
+  ports:
+  - port: 50051
+    targetPort: 50051

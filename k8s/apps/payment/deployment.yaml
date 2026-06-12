@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment
+  namespace: backend-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment
+  template:
+    metadata:
+      labels:
+        app: payment
+    spec:
+      containers:
+      - name: payment
+        image: 192.168.0.54/ecommerce/payment:latest
+        ports:
+        - containerPort: 50053
+        envFrom:
+        - configMapRef:
+            name: payment-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-svc
+  namespace: backend-ns
+spec:
+  selector:
+    app: payment
+  ports:
+  - port: 50053
+    targetPort: 50053

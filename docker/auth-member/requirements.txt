@@ -1,5 +1,5 @@
-grpcio
-grpcio-tools
-pymysql
-bcrypt
-PyJWT
+grpcio==1.81.0
+grpcio-tools==1.81.0
+pymysql==1.1.1
+bcrypt==4.2.1
+PyJWT==2.10.1

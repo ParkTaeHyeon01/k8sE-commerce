@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-member
+  namespace: backend-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-member
+  template:
+    metadata:
+      labels:
+        app: auth-member
+    spec:
+      containers:
+      - name: auth-member
+        image: 192.168.0.54/ecommerce/auth-member:latest
+        ports:
+        - containerPort: 50052
+        envFrom:
+        - configMapRef:
+            name: auth-member-config
+        - secretRef:
+            name: auth-member-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-member-svc
+  namespace: backend-ns
+spec:
+  selector:
+    app: auth-member
+  ports:
+  - port: 50052
+    targetPort: 50052
