@@ -16,7 +16,7 @@ spec:
       - id: 0
         type: persistent-claim
         size: 10Gi
-        storageClass: longhorn-single
+        class: longhorn-single
         deleteClaim: false
 ---
 apiVersion: kafka.strimzi.io/v1
