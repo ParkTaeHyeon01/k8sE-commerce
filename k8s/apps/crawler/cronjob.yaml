@@ -5,6 +5,7 @@ metadata:
   namespace: crawler-ns
 spec:
   schedule: "0 * * * *"
+  timeZone: "Asia/Seoul"
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
@@ -30,6 +31,7 @@ metadata:
   namespace: crawler-ns
 spec:
   schedule: "30 * * * *"
+  timeZone: "Asia/Seoul"
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
