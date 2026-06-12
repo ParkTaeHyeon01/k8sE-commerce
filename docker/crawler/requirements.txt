@@ -2,3 +2,4 @@ playwright==1.60.0
 playwright-stealth==2.0.3
 python-dotenv==1.0.1
 confluent-kafka==2.14.0
+pymongo==4.10.1
