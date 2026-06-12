@@ -96,7 +96,7 @@ async def run() -> None:
     total_updated = 0
 
     async with Stealth().use_async(async_playwright()) as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
         ctx = await browser.new_context(user_agent=USER_AGENT, locale="ko-KR")
         page = await ctx.new_page()
 

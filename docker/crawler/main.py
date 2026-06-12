@@ -148,7 +148,7 @@ async def run() -> None:
 
     async with Stealth().use_async(async_playwright()) as p:
         # k8s 컨테이너에는 디스플레이가 없으므로 headless로 실행한다
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
         context = await browser.new_context(user_agent=USER_AGENT, locale="ko-KR")
         page = await context.new_page()
 
