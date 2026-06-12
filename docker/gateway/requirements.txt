@@ -3,3 +3,6 @@ uvicorn==0.49.0
 grpcio==1.81.0
 grpcio-tools==1.81.0
 python-dotenv==1.0.1
+pymongo==4.10.1
+redis==5.2.1
+PyJWT==2.10.1
