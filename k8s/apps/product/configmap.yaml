@@ -5,7 +5,7 @@ metadata:
   namespace: backend-ns
 data:
   MONGODB_DB:         "ecommerce"
-  REDIS_WRITE_URL:    "redis://redis-svc-master.redis-ns.svc.cluster.local:6379/0"
-  REDIS_READ_URL:     "redis://redis-svc-follower.redis-ns.svc.cluster.local:6379/0"
+  REDIS_WRITE_URL:    "redis://:k8spass%23@redis-svc-master.redis-ns.svc.cluster.local:6379/0"
+  REDIS_READ_URL:     "redis://:k8spass%23@redis-svc-follower.redis-ns.svc.cluster.local:6379/0"
   CACHE_TTL_SECONDS:  "300"
   PRODUCT_GRPC_PORT:  "50051"

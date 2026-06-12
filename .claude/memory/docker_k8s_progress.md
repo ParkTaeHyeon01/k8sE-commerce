@@ -7,7 +7,7 @@ metadata:
   originSessionId: 4e827445-bbda-4abd-bc52-9e363a20499a
 ---
 
-## 현재 상태 (2026-06-11)
+## 현재 상태 (2026-06-12)
 
 ### 완료
 - `docker/` 디렉터리: 서비스별 Dockerfile + `.dockerignore` 작성 완료
@@ -23,21 +23,25 @@ metadata:
   - 코드: product/db.py, gateway/cart.py, gateway/purchase.py, kafka-consumer/main.py
 - MongoDB URI readPreference=secondaryPreferred 추가 (gateway, product secret)
 - Sealed Secrets 도입 결정 (기존 secret → SealedSecret으로 전환 예정)
+- **namespaces.yaml 클러스터 적용 완료** (2026-06-12) — 9개 ns 모두 Active
 
 ### 네임스페이스 구조
 ```
 frontend-ns       → frontend
 gateway-ns        → gateway
 backend-ns        → product, auth-member, payment
-kafka-consumer-ns → kafka-consumer (검토 중: pipeline-ns로 crawler와 합칠 수도)
+kafka-consumer-ns → kafka-consumer
 crawler-ns        → crawler
-kafka-ns          → kafka broker
+kafka-ns          → kafka broker (인프라)
 mariadb-ns        → mariadb
 mongodb-ns        → mongodb
 redis-ns          → redis
 ```
 
 ### 미완료
+- MongoDB Community Operator 설치 (Helm)
+- Redis OT Operator 설치 (Helm)
+- k8s/infra/ YAML 적용 (mariadb, mongodb, redis)
 - k8s Deployment / Service YAML (3단계)
 - HPA YAML (4단계)
 - Istio Gateway / HTTPRoute YAML (5단계)
@@ -45,10 +49,11 @@ redis-ns          → redis
 - Sealed Secrets 실제 암호화 (클러스터 구성 후)
 - Docker 이미지 빌드 (Docker Desktop 미설치)
 
-### 클러스터 상태 (2026-06-11 확인)
+### 클러스터 상태 (2026-06-12 확인)
 - master 1 + worker 3 (총 4대), k8s 1.31.9, Ubuntu 24.04
 - Calico ✅, MetalLB ✅ (IPAddressPool 미설정), metrics-server ✅
-- Longhorn ❌, Istio ❌, MongoDB Operator ❌, Redis Operator ❌
+- Longhorn ✅, Istio ✅, MinIO ✅, Velero ✅, monitoring ✅
+- MongoDB Operator ❌, Redis Operator ❌
 - 팀원이 k8s 인프라 구성 담당
 
 ## 핵심 결정

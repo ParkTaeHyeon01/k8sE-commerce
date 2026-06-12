@@ -5,6 +5,6 @@ metadata:
   namespace: backend-ns
 data:
   MARIADB_HOST:   "mariadb-svc.mariadb-ns.svc.cluster.local"
-  MARIADB_USER:   "root"
+  MARIADB_USER:   "kevin"
   MARIADB_DB:     "ecommerce"
   AUTH_GRPC_PORT: "50052"

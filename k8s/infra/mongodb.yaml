@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: mongodb-admin-password
+  name: mongodb-kevin-password
   namespace: mongodb-ns
 type: Opaque
 stringData:
-  password: "CHANGE_ME"
+  password: "k8spass#"
 ---
 apiVersion: mongodbcommunity.mongodb.com/v1
 kind: MongoDBCommunity
@@ -20,16 +20,14 @@ spec:
     authentication:
       modes: ["SCRAM"]
   users:
-    - name: admin
-      db: admin
+    - name: kevin
+      db: ecommerce
       passwordSecretRef:
-        name: mongodb-admin-password
+        name: mongodb-kevin-password
       roles:
-        - name: clusterAdmin
-          db: admin
         - name: readWrite
           db: ecommerce
-      scramCredentialsSecretName: admin-scram
+      scramCredentialsSecretName: kevin-scram
   statefulSet:
     spec:
       volumeClaimTemplates:
