@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: crawler-best
+  namespace: crawler-ns
+spec:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: crawler
+            image: 192.168.0.54/ecommerce/crawler:latest
+            envFrom:
+            - configMapRef:
+                name: crawler-best-config
+            - secretRef:
+                name: crawler-secret
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: crawler-sales
+  namespace: crawler-ns
+spec:
+  schedule: "30 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: crawler
+            image: 192.168.0.54/ecommerce/crawler:latest
+            envFrom:
+            - configMapRef:
+                name: crawler-sales-config
+            - secretRef:
+                name: crawler-secret
