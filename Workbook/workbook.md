@@ -603,12 +603,15 @@ kubectl apply -f k8s/namespaces.yaml
 kubectl get ns
 ```
 
-### Step 2. MongoDB Community Operator 설치
+### Step 2. MongoDB Operator 설치
+
+> 기존 `community-operator` 차트는 deprecated. 신규 통합 차트 `mongodb-kubernetes` 사용.
 
 ```bash
 helm repo add mongodb https://mongodb.github.io/helm-charts
 helm repo update
-helm install community-operator mongodb/community-operator --namespace mongodb-ns
+helm upgrade --install mongodb-kubernetes-operator mongodb/mongodb-kubernetes \
+  --namespace mongodb-ns
 ```
 
 설치 확인:
@@ -618,15 +621,51 @@ kubectl get pods -n mongodb-ns
 
 ### Step 3. Redis OT Operator 설치
 
+> Operator Pod는 `ot-operators` 네임스페이스에 설치. 실제 Redis는 `redis-ns`에 배포.
+
 ```bash
 helm repo add ot-helm https://ot-container-kit.github.io/helm-charts
 helm repo update
-helm install redis-operator ot-helm/redis-operator --namespace redis-ns
+helm upgrade redis-operator ot-helm/redis-operator \
+  --install --namespace ot-operators
 ```
 
 설치 확인:
 ```bash
-kubectl get pods -n redis-ns
+kubectl get pods -n ot-operators
+```
+
+### Step 3-1. Kafka (Strimzi) Operator 설치
+
+> KRaft 모드 지원. Operator Pod는 `kafka-ns`에 설치.
+
+```bash
+helm repo add strimzi https://strimzi.io/charts/
+helm repo update
+helm upgrade --install strimzi strimzi/strimzi-kafka-operator \
+  --namespace kafka-ns
+```
+
+설치 확인:
+```bash
+kubectl get pods -n kafka-ns
+```
+
+### Step 3-2. Sealed Secrets 설치
+
+> Secret 암호화 도구. `kube-system`에 설치, `fullnameOverride` 필수 (kubeseal CLI 연동).
+
+```bash
+helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
+helm repo update
+helm install sealed-secrets -n kube-system \
+  --set-string fullnameOverride=sealed-secrets-controller \
+  sealed-secrets/sealed-secrets
+```
+
+설치 확인:
+```bash
+kubectl get pods -n kube-system | grep sealed
 ```
 
 ### Step 4. DB 인프라 적용
