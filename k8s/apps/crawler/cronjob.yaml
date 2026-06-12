@@ -9,6 +9,9 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          annotations:
+            proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
         spec:
           restartPolicy: OnFailure
           containers:
@@ -31,6 +34,9 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          annotations:
+            proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
         spec:
           restartPolicy: OnFailure
           containers:
