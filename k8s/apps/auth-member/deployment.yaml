@@ -12,6 +12,9 @@ spec:
     metadata:
       labels:
         app: auth-member
+    metadata:
+      annotations:
+        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
     spec:
       containers:
       - name: auth-member
