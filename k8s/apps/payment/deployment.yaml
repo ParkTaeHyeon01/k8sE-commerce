@@ -16,6 +16,7 @@ spec:
       containers:
       - name: payment
         image: 192.168.0.54/ecommerce/payment:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 50053
         envFrom:

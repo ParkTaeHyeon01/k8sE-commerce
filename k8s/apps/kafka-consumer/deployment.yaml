@@ -16,6 +16,7 @@ spec:
       containers:
       - name: kafka-consumer
         image: 192.168.0.54/ecommerce/kafka-consumer:latest
+        imagePullPolicy: Always
         envFrom:
         - configMapRef:
             name: kafka-consumer-config

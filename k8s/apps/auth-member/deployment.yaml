@@ -16,6 +16,7 @@ spec:
       containers:
       - name: auth-member
         image: 192.168.0.54/ecommerce/auth-member:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 50052
         envFrom:

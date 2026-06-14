@@ -1,0 +1,50 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ecommerce-vs
+  namespace: gateway-ns
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - ecommerce-gateway
+  http:
+  # API 경로 → gateway-svc (FastAPI REST)
+  - match:
+    - uri:
+        prefix: /products
+    - uri:
+        prefix: /categories
+    - uri:
+        prefix: /auth
+    - uri:
+        prefix: /me
+    - uri:
+        prefix: /cart
+    - uri:
+        prefix: /orders
+    - uri:
+        prefix: /admin
+    - uri:
+        prefix: /health
+    route:
+    - destination:
+        host: gateway-svc.gateway-ns.svc.cluster.local
+        port:
+          number: 8000
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure
+
+  # 나머지 → frontend-svc
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: frontend-svc.frontend-ns.svc.cluster.local
+        port:
+          number: 80
+    timeout: 10s

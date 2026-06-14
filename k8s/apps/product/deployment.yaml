@@ -16,6 +16,7 @@ spec:
       containers:
       - name: product
         image: 192.168.0.54/ecommerce/product:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 50051
         envFrom:
