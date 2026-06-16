@@ -137,13 +137,28 @@
 
 ---
 
-## 3. Redis — 장바구니 캐시
+## 3. Redis
 
-> MariaDB / MongoDB 미사용 — 단순 Key-Value 저장 (gateway 서비스)
+> 두 서비스에서 각각 다른 목적으로 사용
+
+### 3-1. 상품 목록 캐시 (product 서비스)
+
+캐시 조회 순서: **인메모리 → Redis → MongoDB**
+
+| 키 패턴 | 타입 | 값 | TTL |
+|---------|------|-----|-----|
+| `list:{target}:{category_code}:{page}:{page_size}:{sort_by}` | string (JSON) | 상품 목록 + total | 5분 (기본값) |
+
+- 재고 수정 / 상품 삭제 / 크롤링 sync 완료 시 `list:*` 전체 삭제
+- 인메모리 캐시는 프로세스 재시작 시 초기화
+
+### 3-2. 장바구니 (gateway 서비스)
 
 | 키 | 타입 | 값 | TTL |
 |----|------|-----|-----|
 | `cart:{user_id}` | string (JSON) | `{"product_id": quantity, ...}` | 7일 |
+
+- 결제 완료 또는 장바구니 전체 비우기 시 키 삭제
 
 ---
 
