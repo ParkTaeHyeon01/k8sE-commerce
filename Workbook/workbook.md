@@ -16,6 +16,7 @@ k8s CI/CD 시연을 목적으로 한 MSA 구조의 MVP 프로젝트.
 7. [프론트엔드](#7-프론트엔드)
 8. [전체 실행 순서](#8-전체-실행-순서)
 9. [k8s 배포](#9-k8s-배포)
+10. [운영 이슈 & 트러블슈팅](#10-운영-이슈--트러블슈팅)
 
 ---
 
@@ -747,3 +748,213 @@ redis-svc-master.redis-ns.svc.cluster.local:6379
 mariadb-svc.mariadb-ns.svc.cluster.local:3306
 product-svc.backend-ns.svc.cluster.local:50051
 ```
+
+---
+
+## 10. 운영 이슈 & 트러블슈팅
+
+### 10-1. Harbor/GitLab IP 변경 (0.54 → 0.64)
+
+Harbor·GitLab 서버 IP가 변경된 경우 다음 위치를 모두 업데이트해야 한다.
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `manifest-repo/helm-charts/values.yaml` | 모든 이미지 `repository` 필드 |
+| `manifest-repo/k8s/infra/mariadb.yaml` | image 주소 |
+| `manifest-repo/k8s/infra/redis.yaml` | image 주소 |
+| `app-repo/.gitlab-ci.yml` | manifest-repo clone URL |
+
+**git remote URL 변경**
+
+```bash
+# 기존 remote 확인
+git remote -v
+
+# 새 IP로 pull/push (URL 인코딩 주의: # → %23)
+git pull http://root:k8spass%23@192.168.0.64:8929/team4-group/manifest-repo.git main
+git push http://root:k8spass%23@192.168.0.64:8929/team4-group/manifest-repo.git main
+```
+
+**각 노드 containerd insecure registry 설정 (setup-harbor-registry.sh)**
+
+Harbor IP 변경 시 모든 k8s 노드의 containerd 설정도 갱신해야 한다.
+
+```bash
+# manifest-repo/k8s/setup-harbor-registry.sh 실행
+bash k8s/setup-harbor-registry.sh
+```
+
+스크립트 내용:
+```bash
+HARBOR_IP="192.168.0.64"
+NODES=("192.168.0.68" "192.168.0.57" "192.168.0.59" "192.168.0.60")
+# 각 노드에 /etc/containerd/certs.d/${HARBOR_IP}/hosts.toml 생성 후 containerd 재시작
+```
+
+---
+
+### 10-2. NetworkPolicy 트러블슈팅
+
+#### Calico iptables 모드 — kube-apiserver egress
+
+**증상**: mongodb-kubernetes-operator CrashLoopBackOff, 로그에 `TLS handshake timeout` (대상: `10.233.0.1:443`)
+
+**원인**: Calico는 iptables 정책을 kube-proxy DNAT **이후**에 평가한다.  
+따라서 NetworkPolicy에는 ClusterIP(`10.233.0.1:443`)가 아닌 **실제 kube-apiserver 엔드포인트 IP**를 써야 한다.
+
+```bash
+# 실제 kube-apiserver 엔드포인트 확인
+kubectl get endpoints kubernetes -n default
+```
+
+**수정 (manifest-repo/helm-charts/templates/infra/networkpolicy-mongodb.yaml)**
+
+```yaml
+egress:
+- ports:
+  - port: 6443        # kube-apiserver 실제 포트
+    protocol: TCP
+  to:
+  - ipBlock:
+      cidr: 192.168.0.68/32   # master 노드 실제 IP
+```
+
+#### mariadb-ns — istiod egress 누락
+
+**증상**: `mariadb-0` 파드의 `istio-proxy` 컨테이너 Startup probe 실패  
+(`connect: connection refused` on `10.233.100.141:15021`)
+
+**원인**: `mariadb-ns`에 `default-deny-all` NetworkPolicy는 있으나 istiod 통신 허용 정책이 없어 istio-proxy가 istiod에 연결 불가
+
+**수정**: `manifest-repo/helm-charts/templates/infra/networkpolicy-mariadb.yaml` 추가
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-istiod
+  namespace: mariadb-ns
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: istio-system
+    ports:
+    - port: 15012
+      protocol: TCP
+    - port: 15010
+      protocol: TCP
+    - port: 15017
+      protocol: TCP
+    - port: 15014
+      protocol: TCP
+```
+
+> 동일 패턴이 `mongodb-ns`, `redis-ns`에도 적용되어 있음. Istio가 활성화된 네임스페이스에 `default-deny-all`을 적용할 경우 반드시 istiod egress를 허용해야 한다.
+
+---
+
+### 10-3. CronJob 파드 자동 정리
+
+**증상**: CronJob 완료 후 파드가 5분이 지나도 삭제되지 않음
+
+**원인**: `successfulJobsHistoryLimit: 1`(기본값)이면 CronJob controller가 마지막 성공 Job을 보존하므로 `ttlSecondsAfterFinished`가 동작하지 않는다.
+
+**수정**: `successfulJobsHistoryLimit: 0`으로 변경
+
+```yaml
+spec:
+  successfulJobsHistoryLimit: 0   # 0 = 성공 Job 즉시 관리 해제 → TTL 동작
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 300  # 완료 후 5분 뒤 자동 삭제
+```
+
+> Istio 사이드카가 있는 CronJob은 메인 컨테이너 종료 후 사이드카도 같이 종료되어야 한다.  
+> 아래 어노테이션 필수:
+> ```yaml
+> annotations:
+>   proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true, "proxyMetadata": {"EXIT_ON_ZERO_ACTIVE_CONNECTIONS": "true"}}'
+> ```
+> 메인 컨테이너 종료 시 `quitquitquit` 엔드포인트 호출도 추가:
+> ```bash
+> command: ["/bin/sh", "-c", "python main.py; python -c \"import urllib.request; urllib.request.urlopen('http://localhost:15020/quitquitquit', data=b'')\" 2>/dev/null || true"]
+> ```
+
+---
+
+### 10-4. Orphan Pod 강제 삭제 (finalizer stuck)
+
+**증상**: Job 삭제 후에도 파드가 `Completed` 상태로 영구히 남음  
+`kubectl delete pod --grace-period=0 --force` 도 실패
+
+**원인**: `batch.kubernetes.io/job-tracking` finalizer가 걸려 있고, 해당 Job이 이미 삭제된 경우 finalizer를 처리할 주체가 없어 stuck
+
+**시도한 방법들 (모두 실패)**
+
+| 방법 | 실패 원인 |
+|------|-----------|
+| `--grace-period=0 --force` | finalizer 있으면 무시됨 |
+| `kubectl proxy` + json-patch | Istio mutating webhook이 개입해 spec 변경 → 422 에러 |
+| `kubectl proxy` + merge-patch | 동일 |
+| namespace `istio-injection=disabled` | `istio-revision-tag-default` webhook이 별도 동작 |
+| Istio webhook 2개 임시 삭제 | Kyverno 등 다른 webhook이 동일하게 동작 |
+
+**최종 해결: etcdctl 직접 삭제**
+
+```bash
+# etcd 환경변수 확인
+sudo cat /etc/etcd.env | grep -E "CERT|KEY|CA"
+
+# etcd에서 직접 삭제 (모든 webhook 우회)
+sudo ETCDCTL_API=3 etcdctl \
+  --endpoints=https://127.0.0.1:2379 \
+  --cacert=/etc/ssl/etcd/ssl/ca.pem \
+  --cert=/etc/ssl/etcd/ssl/admin-k8s-master3.pem \
+  --key=/etc/ssl/etcd/ssl/admin-k8s-master3-key.pem \
+  del /registry/pods/<namespace>/<pod-name>
+```
+
+> kubespray 설치 클러스터: etcd cert 경로는 `/etc/ssl/etcd/ssl/`  
+> kubeadm 설치 클러스터: `/etc/kubernetes/pki/etcd/`
+
+---
+
+### 10-5. 서비스명 및 Favicon 변경
+
+**서비스명**: `HAN-IP`
+
+`app-repo/Frontend/index.html` 및 `app-repo/docker/frontend/index.html`:
+```html
+<title>HAN-IP</title>
+```
+
+**Favicon**: 식품 이커머스 컨셉 (녹색 배경 + 흰색 쇼핑카트 + 잎사귀)
+
+`app-repo/Frontend/public/favicon.svg`:
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <rect width="48" height="48" rx="10" fill="#2E8B57"/>
+  <path d="M8 13h5l7 19h14l4-13H18" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="20" cy="36" r="3" fill="white"/>
+  <circle cx="30" cy="36" r="3" fill="white"/>
+  <path d="M33 7 Q39 3 41 9 Q35 13 33 7Z" fill="#90EE90"/>
+</svg>
+```
+
+**주의**: Vite의 `public/` 폴더 파일은 빌드 후 `dist/` 루트에 복사된다.  
+`index.html`의 경로는 `/favicon.svg` (❌ `/public/favicon.svg`)
+
+```html
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+```
+
+**CI 빌드 컨텍스트 주의**:  
+`.gitlab-ci.yml`의 `docker build` 컨텍스트는 `./Frontend`이므로  
+실제 빌드에 포함되는 파일은 `Frontend/` 하위 파일이다.  
+`docker/frontend/` 의 파일은 CI 빌드에 포함되지 않는다.
