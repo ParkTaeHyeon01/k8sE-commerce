@@ -26,3 +26,4 @@ benchmark/rest_err.txt
 # Claude Code 로컬 설정 (메모리 폴더만 git 추적)
 .claude/*
 !.claude/memory/
+docs/netpol-spec.md
