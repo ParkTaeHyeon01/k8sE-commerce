@@ -37,6 +37,11 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 50051
+        env:
+        - name: OPENSSL_ia32cap
+          value: "~0:~0x20000000"
+        - name: PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
+          value: "python"
         envFrom:
         - configMapRef:
             name: benchmark-grpc-config
@@ -151,6 +156,8 @@ spec:
           value: "grpc-server-svc:50051"
         - name: REST_SERVER
           value: "http://rest-server-svc:8000"
+        - name: OPENSSL_ia32cap
+          value: "~0:~0x20000000"
         resources:
           requests:
             cpu: "50m"
