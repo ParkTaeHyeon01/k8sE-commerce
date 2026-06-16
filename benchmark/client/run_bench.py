@@ -17,7 +17,8 @@ import time
 import argparse
 import statistics
 
-import httpx
+import urllib.request
+import json
 import grpc
 import product_pb2
 import product_pb2_grpc
@@ -40,14 +41,14 @@ def bench_grpc(n: int):
 
 
 def bench_rest(n: int):
-    client = httpx.Client(timeout=10.0)
+    url = f"{REST_BASE}/products?target=best&page=1&page_size=20"
     times, sizes = [], []
     for _ in range(n):
         t0  = time.perf_counter()
-        res = client.get(f"{REST_BASE}/products?target=best&page=1&page_size=20")
+        with urllib.request.urlopen(url, timeout=10) as res:
+            body = res.read()
         times.append((time.perf_counter() - t0) * 1000)
-        sizes.append(len(res.content))
-    client.close()
+        sizes.append(len(body))
     return times, sizes
 
 
