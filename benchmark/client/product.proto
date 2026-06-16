@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package product;
+
+service ProductService {
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+}
+
+message ListProductsRequest {
+  string target    = 1;
+  int32  page      = 2;
+  int32  page_size = 3;
+}
+
+message ListProductsResponse {
+  repeated ProductSummary products = 1;
+  int32 total     = 2;
+  int32 page      = 3;
+  int32 page_size = 4;
+}
+
+message ProductSummary {
+  string product_id     = 1;
+  string name           = 2;
+  int32  sale_price     = 3;
+  int32  original_price = 4;
+  int32  discount_rate  = 5;
+  string image_url      = 6;
+  string category_name  = 7;
+  int32  stock          = 8;
+}
