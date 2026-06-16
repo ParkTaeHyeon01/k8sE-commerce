@@ -374,8 +374,10 @@ Kafka 토픽(crawled-products) 구독
 
 ```
 Backend/
-├── proto/product.proto    ← gRPC 인터페이스 정의
+├── proto/                 ← gRPC 인터페이스 정의 (.proto)
 ├── product/               ← gRPC 서버 (MongoDB 조회)
+├── auth-member/           ← gRPC 서버 (회원/포인트/주문, MariaDB)
+├── payment/               ← gRPC 서버 (결제/포인트 차감, MariaDB)
 └── gateway/               ← FastAPI REST API (gRPC 호출 후 JSON 반환)
 ```
 
@@ -387,10 +389,29 @@ python main.py
 ```
 
 - 포트: **50051**
-- 제공 RPC:
-  - `ListProducts` — 목록 조회 (페이지네이션, 정렬, 카테고리 필터)
-  - `GetProduct` — 상품 상세 조회
-  - `ListCategories` — 카테고리 목록 (실제 크롤된 카테고리만 반환)
+- 제공 RPC: `ListProducts`, `GetProduct`, `ListCategories`, `UpdateStock`, `DeleteProduct`
+
+### Auth-Member gRPC 서버
+
+```powershell
+cd Backend/auth-member
+python main.py
+```
+
+- 포트: **50052**
+- 제공 RPC: `Register`, `Login`, `GetMe`, `GetPoints`, `GetOrders`, `GetAddresses`, `AddAddress`, `SetDefaultAddress`, `DeleteAddress`, `WithdrawUser`
+- 관리자 RPC: `AdminListUsers`, `AdminAdjustPoints`, `AdminSetAdmin`, `AdminDeleteUser`, `AdminRestoreUser`, `AdminGetAllOrders`
+- 시작 시 MariaDB 테이블 자동 생성 + 관리자 계정 시드
+
+### Payment gRPC 서버
+
+```powershell
+cd Backend/payment
+python main.py
+```
+
+- 포트: **50053**
+- 제공 RPC: `Checkout` (포인트 차감 + 주문 생성), `CancelOrder` (포인트 환불)
 
 ### Gateway FastAPI
 
@@ -401,31 +422,22 @@ python -m uvicorn main:app --port 8000
 
 - 포트: **8000**
 - Swagger 문서: `http://localhost:8000/docs`
+- 장바구니는 Redis에 직접 저장 (TTL 7일)
 
-**엔드포인트**
+**라우터 구성**
 
-| 메서드 | URL | 설명 |
-|--------|-----|------|
-| GET | `/products` | 상품 목록 |
-| GET | `/products/{product_id}` | 상품 상세 |
-| GET | `/categories` | 카테고리 목록 |
-| GET | `/health` | 헬스체크 |
+| prefix | 설명 |
+|--------|------|
+| `/auth` | 회원가입 · 로그인 |
+| `/me` | 내 정보 · 포인트 · 주문내역 · 배송지 |
+| `/products` | 상품 목록 · 상세 · 자동완성 |
+| `/categories` | 카테고리 목록 |
+| `/cart` | 장바구니 (Redis) |
+| `/cart/checkout` | 포인트 결제 |
+| `/orders/{id}/cancel` | 주문 취소 |
+| `/admin` | 관리자 전용 (상품·회원·주문 관리) |
 
-**`/products` 쿼리 파라미터**
-
-| 파라미터 | 기본값 | 설명 |
-|----------|--------|------|
-| `target` | `""` | `best` / `sales` / `""` (전체) |
-| `category_code` | `""` | 카테고리 코드 (예: `907`) |
-| `page` | `1` | 페이지 번호 |
-| `page_size` | `20` | 페이지당 상품 수 |
-| `sort_by` | `""` | `rank` / `price_asc` / `price_desc` / `discount_desc` |
-
-**`/categories` 쿼리 파라미터**
-
-| 파라미터 | 기본값 | 설명 |
-|----------|--------|------|
-| `target` | `""` | `best` / `sales` / `""` (전체 = best+sales 합집합) |
+> 전체 엔드포인트는 [API 명세서](api-spec.md) 참고
 
 ### Proto 재생성 (proto 수정 시)
 
@@ -433,6 +445,10 @@ python -m uvicorn main:app --port 8000
 cd Backend
 python -m grpc_tools.protoc -I proto --python_out=product --grpc_python_out=product proto/product.proto
 python -m grpc_tools.protoc -I proto --python_out=gateway --grpc_python_out=gateway proto/product.proto
+python -m grpc_tools.protoc -I proto --python_out=auth-member --grpc_python_out=auth-member proto/auth.proto
+python -m grpc_tools.protoc -I proto --python_out=gateway --grpc_python_out=gateway proto/auth.proto
+python -m grpc_tools.protoc -I proto --python_out=payment --grpc_python_out=payment proto/payment.proto
+python -m grpc_tools.protoc -I proto --python_out=gateway --grpc_python_out=gateway proto/payment.proto
 ```
 
 ---
@@ -532,6 +548,12 @@ $env:CRAWL_TARGET="sales"; python rank_updater.py
 cd Backend/product; python main.py
 
 # 터미널 2
+cd Backend/auth-member; python main.py
+
+# 터미널 3
+cd Backend/payment; python main.py
+
+# 터미널 4
 cd Backend/gateway; python -m uvicorn main:app --port 8000
 ```
 
@@ -549,10 +571,12 @@ cd Frontend; npm run dev
 
 ```
 1. Kafka / MongoDB / Redis / MariaDB 시작
-2. cd Kafka          → python main.py
-3. cd Backend/product → python main.py
-4. cd Backend/gateway → python -m uvicorn main:app --port 8000
-5. cd Frontend        → npm run dev
+2. cd Kafka              → python main.py
+3. cd Backend/product    → python main.py
+4. cd Backend/auth-member → python main.py
+5. cd Backend/payment    → python main.py
+6. cd Backend/gateway    → python -m uvicorn main:app --port 8000
+7. cd Frontend           → npm run dev
 ```
 
 ### 포트 요약
@@ -564,6 +588,8 @@ cd Frontend; npm run dev
 | Redis | 6379 |
 | MariaDB | 3306 |
 | Product gRPC | 50051 |
+| Auth-Member gRPC | 50052 |
+| Payment gRPC | 50053 |
 | Gateway REST | 8000 |
 | Frontend | 5173 |
 
@@ -711,30 +737,78 @@ kubectl get pods -n redis-ns
 | 쓰기 | `redis-svc-master.redis-ns` | INSERT / DELETE |
 | 읽기 | `redis-svc-follower.redis-ns` | GET (캐시 조회) |
 
-### Step 5. 앱 ConfigMap / Secret 적용
+### Step 5. GitLab CI/CD + ArgoCD 배포 흐름
 
-```bash
-kubectl apply -f k8s/apps/product/
-kubectl apply -f k8s/apps/gateway/
-kubectl apply -f k8s/apps/auth-member/
-kubectl apply -f k8s/apps/kafka-consumer/
-kubectl apply -f k8s/apps/crawler/
+앱 서비스(product, auth-member, payment, gateway, frontend, crawler, kafka-consumer)는  
+**GitLab CI → Harbor → ArgoCD → Helm Chart** 파이프라인으로 자동 배포된다.
+
+```
+app-repo main 브랜치 push
+  └─▶ GitLab CI (.gitlab-ci.yml)
+        ├─ docker build + trivy scan
+        ├─ docker push → Harbor (192.168.0.64)
+        └─ manifest-repo/helm-charts/values.yaml tag 자동 업데이트
+              └─▶ ArgoCD가 변경 감지 → 클러스터에 자동 싱크
 ```
 
-### Step 6. Deployment / Service 적용 (준비 중)
+**GitLab CI 파이프라인 단계**
+
+| Stage | 내용 |
+|-------|------|
+| test | Runner 연결 확인 |
+| sonar-scan | SonarQube 코드 품질 분석 (main 브랜치만) |
+| build-scan-push | 7개 이미지 빌드 + Trivy 취약점 스캔 + Harbor push |
+| update-manifest | values.yaml의 모든 `tag:` 필드를 `$CI_COMMIT_SHORT_SHA`로 갱신 후 manifest-repo push |
+
+**ArgoCD Application 확인**
 
 ```bash
-kubectl apply -f k8s/apps/product/deployment.yaml
-kubectl apply -f k8s/apps/gateway/deployment.yaml
-# ... 각 서비스
+kubectl get application -n argocd
+# 예시 출력
+# NAME          SYNC STATUS   HEALTH STATUS
+# ecommerce     Synced        Healthy
 ```
 
-### Step 7. Istio Gateway / HTTPRoute 적용 (준비 중)
+**수동 싱크 (필요 시)**
 
 ```bash
-kubectl apply -f k8s/istio/gateway.yaml
-kubectl apply -f k8s/istio/httproutes/
+argocd app sync ecommerce
 ```
+
+**Helm Chart 구조 (manifest-repo)**
+
+```
+helm-charts/
+├── Chart.yaml
+├── values.yaml           ← CI가 tag 자동 갱신
+└── templates/
+    ├── apps/
+    │   ├── product/      ← Deployment + Service
+    │   ├── auth-member/
+    │   ├── payment/
+    │   ├── gateway/
+    │   ├── frontend/
+    │   ├── kafka-consumer/
+    │   └── crawler/      ← CronJob 5개 (best/sales 크롤·순위, 카테고리)
+    └── infra/
+        ├── mariadb.yaml
+        ├── mongodb.yaml
+        ├── redis.yaml
+        ├── kafka.yaml    ← Strimzi KafkaNodePool + Kafka CR
+        ├── networkpolicy-mariadb.yaml
+        ├── networkpolicy-mongodb.yaml
+        └── networkpolicy-redis.yaml
+```
+
+**CronJob 스케줄 (crawler-ns)**
+
+| CronJob | 스케줄 | 역할 |
+|---------|--------|------|
+| crawler-best | 매일 02:00 | 베스트 상품 전체 크롤링 |
+| crawler-sales | 매일 02:30 | 할인 상품 전체 크롤링 |
+| rank-updater-best | 매일 06:00 | 베스트 순위 갱신 |
+| rank-updater-sales | 매일 06:30 | 할인 순위 갱신 |
+| category-crawler | 매일 01:00 | 카테고리 목록 갱신 |
 
 ### FQDN 패턴
 
