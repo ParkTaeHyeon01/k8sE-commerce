@@ -15,9 +15,7 @@ k8s CI/CD 시연을 목적으로 한 MSA 구조의 MVP 프로젝트.
 6. [백엔드](#6-백엔드)
 7. [프론트엔드](#7-프론트엔드)
 8. [전체 실행 순서](#8-전체-실행-순서)
-9. [k8s 배포](#9-k8s-배포)
-10. [운영 이슈 & 트러블슈팅](#10-운영-이슈--트러블슈팅)
-11. [API 명세서](api-spec.md)
+9. [API 명세서](#9-api-명세서)
 
 ---
 
@@ -595,441 +593,647 @@ cd Frontend; npm run dev
 
 ---
 
-## 9. k8s 배포
 
-### 클러스터 구성
+---
 
-| 구성 | 내용 |
+## 9. API 명세서
+
+**Base URL**: `http://<cluster-ip>/api` (인그레스 경유)  
+**인증**: JWT Bearer 토큰 (`Authorization: Bearer <token>`)  
+**인증 필요 항목**: 🔒 표시
+
+---
+
+## 목차
+
+1. [인증 (Auth)](#1-인증-auth)
+2. [내 정보 (Me)](#2-내-정보-me)
+3. [상품 (Products)](#3-상품-products)
+4. [카테고리 (Categories)](#4-카테고리-categories)
+5. [장바구니 (Cart)](#5-장바구니-cart)
+6. [주문/결제 (Purchase)](#6-주문결제-purchase)
+7. [관리자 (Admin)](#7-관리자-admin)
+8. [공통 응답](#8-공통-응답)
+
+---
+
+## 1. 인증 (Auth)
+
+### POST `/auth/register` — 회원가입
+
+| 항목 | 내용 |
 |------|------|
-| 노드 | master 1 + worker 3 (총 4대) |
-| k8s 버전 | 1.31.9 |
-| OS | Ubuntu 24.04 |
-| CNI | Calico |
-| LoadBalancer | MetalLB |
-| 스토리지 | Longhorn |
-| 서비스 메시 | Istio |
-| 백업 | Velero + MinIO |
+| 인증 | 불필요 |
+| Content-Type | application/json |
 
-### 네임스페이스 구조
-
-```
-frontend-ns       → Frontend (React)
-gateway-ns        → Gateway (FastAPI)
-backend-ns        → product / auth-member / payment gRPC 서버
-kafka-consumer-ns → Kafka Consumer
-crawler-ns        → Crawler (CronJob)
-kafka-ns          → Kafka Broker (인프라)
-mariadb-ns        → MariaDB
-mongodb-ns        → MongoDB
-redis-ns          → Redis
+**Request Body**
+```json
+{
+  "username": "홍길동",
+  "email": "user@example.com",
+  "password": "password123"
+}
 ```
 
-### Step 1. 네임스페이스 생성
-
-```bash
-kubectl apply -f k8s/namespaces.yaml
-kubectl get ns
+**Response 200**
+```json
+{
+  "token": "<JWT>",
+  "message": "회원가입 완료"
+}
 ```
 
-### Step 2. MongoDB Operator 설치
-
-> 기존 `community-operator` 차트는 deprecated. 신규 통합 차트 `mongodb-kubernetes` 사용.
-
-```bash
-helm repo add mongodb https://mongodb.github.io/helm-charts
-helm repo update
-helm upgrade --install mongodb-kubernetes-operator mongodb/mongodb-kubernetes \
-  --namespace mongodb-ns
-```
-
-설치 확인:
-```bash
-kubectl get pods -n mongodb-ns
-```
-
-### Step 3. Redis OT Operator 설치
-
-> Operator Pod는 `ot-operators` 네임스페이스에 설치. 실제 Redis는 `redis-ns`에 배포.
-
-```bash
-helm repo add ot-helm https://ot-container-kit.github.io/helm-charts
-helm repo update
-helm upgrade redis-operator ot-helm/redis-operator \
-  --install --namespace ot-operators
-```
-
-설치 확인:
-```bash
-kubectl get pods -n ot-operators
-```
-
-### Step 3-1. Kafka (Strimzi) Operator 설치
-
-> KRaft 모드 지원. Operator Pod는 `kafka-ns`에 설치.
-
-```bash
-helm repo add strimzi https://strimzi.io/charts/
-helm repo update
-helm upgrade --install strimzi strimzi/strimzi-kafka-operator \
-  --namespace kafka-ns
-```
-
-설치 확인:
-```bash
-kubectl get pods -n kafka-ns
-```
-
-### Step 3-2. Sealed Secrets 설치
-
-> Secret 암호화 도구. `kube-system`에 설치, `fullnameOverride` 필수 (kubeseal CLI 연동).
-
-```bash
-helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
-helm repo update
-helm install sealed-secrets -n kube-system \
-  --set-string fullnameOverride=sealed-secrets-controller \
-  sealed-secrets/sealed-secrets
-```
-
-설치 확인:
-```bash
-kubectl get pods -n kube-system | grep sealed
-```
-
-### Step 4. DB 인프라 적용
-
-```bash
-kubectl apply -f k8s/infra/mariadb.yaml
-kubectl apply -f k8s/infra/mongodb.yaml
-kubectl apply -f k8s/infra/redis.yaml
-```
-
-상태 확인:
-```bash
-# MariaDB
-kubectl get statefulset -n mariadb-ns
-kubectl get pvc -n mariadb-ns
-
-# MongoDB (3대 ReplicaSet)
-kubectl get mongodbcommunity -n mongodb-ns
-kubectl get pods -n mongodb-ns
-
-# Redis (1 master + 2 follower)
-kubectl get redisreplication -n redis-ns
-kubectl get pods -n redis-ns
-```
-
-### DB 접속 정보
-
-| DB | 사용자 | 비밀번호 | DB명 |
-|----|--------|----------|------|
-| MariaDB | kevin | k8spass# | ecommerce |
-| MongoDB | kevin | k8spass# | ecommerce |
-| Redis | - | k8spass# | - |
-
-> URI의 `#`은 `%23`으로 URL 인코딩  
-> 예: `mongodb://kevin:k8spass%23@mongodb-svc.mongodb-ns.svc.cluster.local:27017/?authSource=ecommerce`
-
-### Redis 읽기/쓰기 분리
-
-| 용도 | 서비스명 | 설명 |
-|------|----------|------|
-| 쓰기 | `redis-svc-master.redis-ns` | INSERT / DELETE |
-| 읽기 | `redis-svc-follower.redis-ns` | GET (캐시 조회) |
-
-### Step 5. GitLab CI/CD + ArgoCD 배포 흐름
-
-앱 서비스(product, auth-member, payment, gateway, frontend, crawler, kafka-consumer)는  
-**GitLab CI → Harbor → ArgoCD → Helm Chart** 파이프라인으로 자동 배포된다.
-
-```
-app-repo main 브랜치 push
-  └─▶ GitLab CI (.gitlab-ci.yml)
-        ├─ docker build + trivy scan
-        ├─ docker push → Harbor (192.168.0.64)
-        └─ manifest-repo/helm-charts/values.yaml tag 자동 업데이트
-              └─▶ ArgoCD가 변경 감지 → 클러스터에 자동 싱크
-```
-
-**GitLab CI 파이프라인 단계**
-
-| Stage | 내용 |
-|-------|------|
-| test | Runner 연결 확인 |
-| sonar-scan | SonarQube 코드 품질 분석 (main 브랜치만) |
-| build-scan-push | 7개 이미지 빌드 + Trivy 취약점 스캔 + Harbor push |
-| update-manifest | values.yaml의 모든 `tag:` 필드를 `$CI_COMMIT_SHORT_SHA`로 갱신 후 manifest-repo push |
-
-**ArgoCD Application 확인**
-
-```bash
-kubectl get application -n argocd
-# 예시 출력
-# NAME          SYNC STATUS   HEALTH STATUS
-# ecommerce     Synced        Healthy
-```
-
-**수동 싱크 (필요 시)**
-
-```bash
-argocd app sync ecommerce
-```
-
-**Helm Chart 구조 (manifest-repo)**
-
-```
-helm-charts/
-├── Chart.yaml
-├── values.yaml           ← CI가 tag 자동 갱신
-└── templates/
-    ├── apps/
-    │   ├── product/      ← Deployment + Service
-    │   ├── auth-member/
-    │   ├── payment/
-    │   ├── gateway/
-    │   ├── frontend/
-    │   ├── kafka-consumer/
-    │   └── crawler/      ← CronJob 5개 (best/sales 크롤·순위, 카테고리)
-    └── infra/
-        ├── mariadb.yaml
-        ├── mongodb.yaml
-        ├── redis.yaml
-        ├── kafka.yaml    ← Strimzi KafkaNodePool + Kafka CR
-        ├── networkpolicy-mariadb.yaml
-        ├── networkpolicy-mongodb.yaml
-        └── networkpolicy-redis.yaml
-```
-
-**CronJob 스케줄 (crawler-ns)**
-
-| CronJob | 스케줄 | 역할 |
-|---------|--------|------|
-| crawler-best | 매일 02:00 | 베스트 상품 전체 크롤링 |
-| crawler-sales | 매일 02:30 | 할인 상품 전체 크롤링 |
-| rank-updater-best | 매일 06:00 | 베스트 순위 갱신 |
-| rank-updater-sales | 매일 06:30 | 할인 순위 갱신 |
-| category-crawler | 매일 01:00 | 카테고리 목록 갱신 |
-
-### FQDN 패턴
-
-클러스터 내부 서비스 주소:
-
-```
-{서비스명}.{네임스페이스}.svc.cluster.local:{포트}
-
-예)
-mongodb-svc.mongodb-ns.svc.cluster.local:27017
-redis-svc-master.redis-ns.svc.cluster.local:6379
-mariadb-svc.mariadb-ns.svc.cluster.local:3306
-product-svc.backend-ns.svc.cluster.local:50051
+**Response 400** — 이메일 중복 등
+```json
+{ "detail": "이미 사용 중인 이메일입니다." }
 ```
 
 ---
 
-## 10. 운영 이슈 & 트러블슈팅
+### POST `/auth/login` — 로그인
 
-### 10-1. Harbor/GitLab IP 변경 (0.54 → 0.64)
+| 항목 | 내용 |
+|------|------|
+| 인증 | 불필요 |
+| Content-Type | application/json |
 
-Harbor·GitLab 서버 IP가 변경된 경우 다음 위치를 모두 업데이트해야 한다.
-
-| 파일 | 변경 내용 |
-|------|-----------|
-| `manifest-repo/helm-charts/values.yaml` | 모든 이미지 `repository` 필드 |
-| `manifest-repo/k8s/infra/mariadb.yaml` | image 주소 |
-| `manifest-repo/k8s/infra/redis.yaml` | image 주소 |
-| `app-repo/.gitlab-ci.yml` | manifest-repo clone URL |
-
-**git remote URL 변경**
-
-```bash
-# 기존 remote 확인
-git remote -v
-
-# 새 IP로 pull/push (URL 인코딩 주의: # → %23)
-git pull http://root:k8spass%23@192.168.0.64:8929/team4-group/manifest-repo.git main
-git push http://root:k8spass%23@192.168.0.64:8929/team4-group/manifest-repo.git main
+**Request Body**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
 ```
 
-**각 노드 containerd insecure registry 설정 (setup-harbor-registry.sh)**
-
-Harbor IP 변경 시 모든 k8s 노드의 containerd 설정도 갱신해야 한다.
-
-```bash
-# manifest-repo/k8s/setup-harbor-registry.sh 실행
-bash k8s/setup-harbor-registry.sh
+**Response 200**
+```json
+{
+  "token": "<JWT>",
+  "message": "로그인 성공"
+}
 ```
 
-스크립트 내용:
-```bash
-HARBOR_IP="192.168.0.64"
-NODES=("192.168.0.68" "192.168.0.57" "192.168.0.59" "192.168.0.60")
-# 각 노드에 /etc/containerd/certs.d/${HARBOR_IP}/hosts.toml 생성 후 containerd 재시작
+**Response 401** — 이메일/비밀번호 불일치
+```json
+{ "detail": "이메일 또는 비밀번호가 올바르지 않습니다." }
 ```
 
 ---
 
-### 10-2. NetworkPolicy 트러블슈팅
+## 2. 내 정보 (Me)
 
-#### Calico iptables 모드 — kube-apiserver egress
+### GET `/me` 🔒 — 내 프로필 조회
 
-**증상**: mongodb-kubernetes-operator CrashLoopBackOff, 로그에 `TLS handshake timeout` (대상: `10.233.0.1:443`)
-
-**원인**: Calico는 iptables 정책을 kube-proxy DNAT **이후**에 평가한다.  
-따라서 NetworkPolicy에는 ClusterIP(`10.233.0.1:443`)가 아닌 **실제 kube-apiserver 엔드포인트 IP**를 써야 한다.
-
-```bash
-# 실제 kube-apiserver 엔드포인트 확인
-kubectl get endpoints kubernetes -n default
+**Response 200**
+```json
+{
+  "id": 1,
+  "username": "홍길동",
+  "email": "user@example.com",
+  "points": 5000,
+  "is_admin": false,
+  "created_at": "2025-01-01T00:00:00"
+}
 ```
-
-**수정 (manifest-repo/helm-charts/templates/infra/networkpolicy-mongodb.yaml)**
-
-```yaml
-egress:
-- ports:
-  - port: 6443        # kube-apiserver 실제 포트
-    protocol: TCP
-  to:
-  - ipBlock:
-      cidr: 192.168.0.68/32   # master 노드 실제 IP
-```
-
-#### mariadb-ns — istiod egress 누락
-
-**증상**: `mariadb-0` 파드의 `istio-proxy` 컨테이너 Startup probe 실패  
-(`connect: connection refused` on `10.233.100.141:15021`)
-
-**원인**: `mariadb-ns`에 `default-deny-all` NetworkPolicy는 있으나 istiod 통신 허용 정책이 없어 istio-proxy가 istiod에 연결 불가
-
-**수정**: `manifest-repo/helm-charts/templates/infra/networkpolicy-mariadb.yaml` 추가
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-egress-istiod
-  namespace: mariadb-ns
-spec:
-  podSelector: {}
-  policyTypes:
-  - Egress
-  egress:
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: istio-system
-    ports:
-    - port: 15012
-      protocol: TCP
-    - port: 15010
-      protocol: TCP
-    - port: 15017
-      protocol: TCP
-    - port: 15014
-      protocol: TCP
-```
-
-> 동일 패턴이 `mongodb-ns`, `redis-ns`에도 적용되어 있음. Istio가 활성화된 네임스페이스에 `default-deny-all`을 적용할 경우 반드시 istiod egress를 허용해야 한다.
 
 ---
 
-### 10-3. CronJob 파드 자동 정리
+### GET `/me/points` 🔒 — 포인트 조회
 
-**증상**: CronJob 완료 후 파드가 5분이 지나도 삭제되지 않음
-
-**원인**: `successfulJobsHistoryLimit: 1`(기본값)이면 CronJob controller가 마지막 성공 Job을 보존하므로 `ttlSecondsAfterFinished`가 동작하지 않는다.
-
-**수정**: `successfulJobsHistoryLimit: 0`으로 변경
-
-```yaml
-spec:
-  successfulJobsHistoryLimit: 0   # 0 = 성공 Job 즉시 관리 해제 → TTL 동작
-  failedJobsHistoryLimit: 1
-  jobTemplate:
-    spec:
-      ttlSecondsAfterFinished: 300  # 완료 후 5분 뒤 자동 삭제
+**Response 200**
+```json
+{ "points": 5000 }
 ```
-
-> Istio 사이드카가 있는 CronJob은 메인 컨테이너 종료 후 사이드카도 같이 종료되어야 한다.  
-> 아래 어노테이션 필수:
-> ```yaml
-> annotations:
->   proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true, "proxyMetadata": {"EXIT_ON_ZERO_ACTIVE_CONNECTIONS": "true"}}'
-> ```
-> 메인 컨테이너 종료 시 `quitquitquit` 엔드포인트 호출도 추가:
-> ```bash
-> command: ["/bin/sh", "-c", "python main.py; python -c \"import urllib.request; urllib.request.urlopen('http://localhost:15020/quitquitquit', data=b'')\" 2>/dev/null || true"]
-> ```
 
 ---
 
-### 10-4. Orphan Pod 강제 삭제 (finalizer stuck)
+### GET `/me/orders` 🔒 — 주문 내역 조회
 
-**증상**: Job 삭제 후에도 파드가 `Completed` 상태로 영구히 남음  
-`kubectl delete pod --grace-period=0 --force` 도 실패
-
-**원인**: `batch.kubernetes.io/job-tracking` finalizer가 걸려 있고, 해당 Job이 이미 삭제된 경우 finalizer를 처리할 주체가 없어 stuck
-
-**시도한 방법들 (모두 실패)**
-
-| 방법 | 실패 원인 |
-|------|-----------|
-| `--grace-period=0 --force` | finalizer 있으면 무시됨 |
-| `kubectl proxy` + json-patch | Istio mutating webhook이 개입해 spec 변경 → 422 에러 |
-| `kubectl proxy` + merge-patch | 동일 |
-| namespace `istio-injection=disabled` | `istio-revision-tag-default` webhook이 별도 동작 |
-| Istio webhook 2개 임시 삭제 | Kyverno 등 다른 webhook이 동일하게 동작 |
-
-**최종 해결: etcdctl 직접 삭제**
-
-```bash
-# etcd 환경변수 확인
-sudo cat /etc/etcd.env | grep -E "CERT|KEY|CA"
-
-# etcd에서 직접 삭제 (모든 webhook 우회)
-sudo ETCDCTL_API=3 etcdctl \
-  --endpoints=https://127.0.0.1:2379 \
-  --cacert=/etc/ssl/etcd/ssl/ca.pem \
-  --cert=/etc/ssl/etcd/ssl/admin-k8s-master3.pem \
-  --key=/etc/ssl/etcd/ssl/admin-k8s-master3-key.pem \
-  del /registry/pods/<namespace>/<pod-name>
+**Response 200**
+```json
+{
+  "orders": [
+    {
+      "id": 1,
+      "product_id": "abc123",
+      "product_name": "유기농 사과",
+      "product_image": "https://...",
+      "quantity": 2,
+      "unit_price": 3000,
+      "total_price": 6000,
+      "status": "completed",
+      "created_at": "2025-06-01T12:00:00",
+      "shipping_address": "서울시 강남구 ..."
+    }
+  ]
+}
 ```
-
-> kubespray 설치 클러스터: etcd cert 경로는 `/etc/ssl/etcd/ssl/`  
-> kubeadm 설치 클러스터: `/etc/kubernetes/pki/etcd/`
 
 ---
 
-### 10-5. 서비스명 및 Favicon 변경
+### GET `/me/addresses` 🔒 — 배송지 목록 조회
 
-**서비스명**: `HAN-IP`
-
-`app-repo/Frontend/index.html` 및 `app-repo/docker/frontend/index.html`:
-```html
-<title>HAN-IP</title>
+**Response 200**
+```json
+{
+  "addresses": [
+    {
+      "id": 1,
+      "recipient": "홍길동",
+      "phone": "010-1234-5678",
+      "zipcode": "12345",
+      "address": "서울시 강남구 테헤란로 1",
+      "address_detail": "101호",
+      "is_default": true
+    }
+  ]
+}
 ```
 
-**Favicon**: 식품 이커머스 컨셉 (녹색 배경 + 흰색 쇼핑카트 + 잎사귀)
+---
 
-`app-repo/Frontend/public/favicon.svg`:
-```svg
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <rect width="48" height="48" rx="10" fill="#2E8B57"/>
-  <path d="M8 13h5l7 19h14l4-13H18" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="20" cy="36" r="3" fill="white"/>
-  <circle cx="30" cy="36" r="3" fill="white"/>
-  <path d="M33 7 Q39 3 41 9 Q35 13 33 7Z" fill="#90EE90"/>
-</svg>
+### POST `/me/addresses` 🔒 — 배송지 추가
+
+**Request Body**
+```json
+{
+  "recipient": "홍길동",
+  "phone": "010-1234-5678",
+  "zipcode": "12345",
+  "address": "서울시 강남구 테헤란로 1",
+  "address_detail": "101호"
+}
 ```
 
-**주의**: Vite의 `public/` 폴더 파일은 빌드 후 `dist/` 루트에 복사된다.  
-`index.html`의 경로는 `/favicon.svg` (❌ `/public/favicon.svg`)
-
-```html
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+**Response 200**
+```json
+{ "success": true, "address_id": 3 }
 ```
 
-**CI 빌드 컨텍스트 주의**:  
-`.gitlab-ci.yml`의 `docker build` 컨텍스트는 `./Frontend`이므로  
-실제 빌드에 포함되는 파일은 `Frontend/` 하위 파일이다.  
-`docker/frontend/` 의 파일은 CI 빌드에 포함되지 않는다.
+---
+
+### PUT `/me/addresses/{address_id}/default` 🔒 — 기본 배송지 변경
+
+| 파라미터 | 위치 | 설명 |
+|---------|------|------|
+| address_id | Path | 배송지 ID |
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+### DELETE `/me/addresses/{address_id}` 🔒 — 배송지 삭제
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+### DELETE `/me` 🔒 — 회원 탈퇴
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+## 3. 상품 (Products)
+
+### GET `/products` — 상품 목록 조회
+
+| 파라미터 | 위치 | 타입 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| target | Query | string | `""` | `best` \| `sales` \| (빈값=전체) |
+| category_code | Query | string | `""` | 카테고리 코드 (예: `907`) |
+| page | Query | int | `1` | 페이지 번호 (1부터) |
+| page_size | Query | int | `20` | 페이지당 상품 수 (최대 100) |
+| sort_by | Query | string | `""` | `rank` \| `price_asc` \| `price_desc` \| `discount_desc` |
+| q | Query | string | `""` | 검색어 |
+
+**Response 200**
+```json
+{
+  "products": [
+    {
+      "product_id": "abc123",
+      "name": "유기농 사과",
+      "image_url": "https://...",
+      "original_price": 5000,
+      "sale_price": 3500,
+      "discount_rate": 30,
+      "category_code": "908",
+      "category_name": "과일·견과·쌀",
+      "stock": 99,
+      "rank": 1
+    }
+  ],
+  "total": 120,
+  "page": 1,
+  "page_size": 20
+}
+```
+
+---
+
+### GET `/products/suggest` — 검색 자동완성
+
+| 파라미터 | 위치 | 타입 | 설명 |
+|---------|------|------|------|
+| q | Query | string | 검색어 (최소 1자) |
+
+**Response 200**
+```json
+{
+  "suggestions": ["사과", "사과즙", "사과잼"]
+}
+```
+
+---
+
+### GET `/products/{product_id}` — 상품 상세 조회
+
+| 파라미터 | 위치 | 설명 |
+|---------|------|------|
+| product_id | Path | 상품 ID |
+
+**Response 200**
+```json
+{
+  "product_id": "abc123",
+  "name": "유기농 사과",
+  "image_url": "https://...",
+  "detail_images": ["https://...", "https://..."],
+  "original_price": 5000,
+  "sale_price": 3500,
+  "discount_rate": 30,
+  "category_code": "908",
+  "category_name": "과일·견과·쌀",
+  "stock": 99,
+  "rank": 1
+}
+```
+
+**Response 404**
+```json
+{ "detail": "상품을 찾을 수 없습니다" }
+```
+
+---
+
+## 4. 카테고리 (Categories)
+
+### GET `/categories` — 카테고리 목록
+
+| 파라미터 | 위치 | 타입 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| target | Query | string | `best` | `best` \| `sales` |
+
+**Response 200**
+```json
+{
+  "categories": [
+    { "code": "907", "name": "채소" },
+    { "code": "908", "name": "과일·견과·쌀" }
+  ]
+}
+```
+
+---
+
+## 5. 장바구니 (Cart)
+
+### GET `/cart` 🔒 — 장바구니 조회
+
+**Response 200**
+```json
+{
+  "items": [
+    {
+      "product_id": "abc123",
+      "name": "유기농 사과",
+      "image_url": "https://...",
+      "sale_price": 3500,
+      "stock": 99,
+      "quantity": 2,
+      "total_price": 7000
+    }
+  ],
+  "total": 7000
+}
+```
+
+---
+
+### POST `/cart` 🔒 — 장바구니 담기
+
+**Request Body**
+```json
+{
+  "product_id": "abc123",
+  "quantity": 2
+}
+```
+
+**Response 200**
+```json
+{ "success": true, "quantity": 2 }
+```
+
+**Response 400** — 재고 없음
+```json
+{ "detail": "재고가 없습니다." }
+```
+
+**Response 404** — 상품 없음
+```json
+{ "detail": "상품을 찾을 수 없습니다." }
+```
+
+---
+
+### PUT `/cart/{product_id}` 🔒 — 장바구니 수량 변경
+
+| 파라미터 | 위치 | 설명 |
+|---------|------|------|
+| product_id | Path | 상품 ID |
+
+**Request Body**
+```json
+{ "quantity": 3 }
+```
+> `quantity`가 0 이하면 해당 상품이 장바구니에서 제거됩니다.
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+### DELETE `/cart/{product_id}` 🔒 — 장바구니 특정 상품 제거
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+### DELETE `/cart` 🔒 — 장바구니 전체 비우기
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+## 6. 주문/결제 (Purchase)
+
+### POST `/cart/checkout` 🔒 — 장바구니 결제 (포인트 차감)
+
+**Request Body**
+```json
+{ "address_id": 1 }
+```
+
+**Response 200**
+```json
+{
+  "success": true,
+  "total": 7000,
+  "points_after": 43000,
+  "items_count": 1
+}
+```
+
+**Response 400** — 장바구니가 비어 있거나 포인트 부족
+```json
+{ "detail": "포인트가 부족합니다." }
+```
+
+**Response 502** — Payment 서비스 오류
+```json
+{ "detail": "결제 서비스 오류: UNAVAILABLE" }
+```
+
+---
+
+### POST `/orders/{order_id}/cancel` 🔒 — 주문 취소 (포인트 환불)
+
+| 파라미터 | 위치 | 설명 |
+|---------|------|------|
+| order_id | Path | 주문 ID |
+
+**Response 200**
+```json
+{ "success": true, "refund_amount": 7000 }
+```
+
+---
+
+## 7. 관리자 (Admin)
+
+> 모든 엔드포인트에 관리자 계정의 JWT가 필요합니다. 🔒  
+> 일반 사용자가 호출하면 `403 Forbidden`
+
+### 상품 관리
+
+#### GET `/admin/products` — 상품 전체 목록
+
+| 파라미터 | 위치 | 타입 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| page | Query | int | `1` | 페이지 번호 |
+| page_size | Query | int | `50` | 페이지당 수 |
+| q | Query | string | `""` | 검색어 |
+| sort_by | Query | string | `""` | 정렬 기준 |
+| search_by | Query | string | `""` | `name` \| `product_id` |
+
+**Response 200**
+```json
+{
+  "products": [
+    {
+      "product_id": "abc123",
+      "name": "유기농 사과",
+      "sale_price": 3500,
+      "discount_rate": 30,
+      "category_name": "과일·견과·쌀",
+      "stock": 99,
+      "image_url": "https://..."
+    }
+  ],
+  "total": 500,
+  "page": 1,
+  "page_size": 50
+}
+```
+
+---
+
+#### PUT `/admin/products/{product_id}/stock` — 재고 수정
+
+**Request Body**
+```json
+{ "stock": 100 }
+```
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+#### DELETE `/admin/products/{product_id}` — 상품 삭제
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+### 회원 관리
+
+#### GET `/admin/users` — 회원 전체 목록
+
+**Response 200**
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "홍길동",
+      "email": "user@example.com",
+      "points": 5000,
+      "is_admin": false,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00",
+      "deactivated_by": ""
+    }
+  ]
+}
+```
+
+---
+
+#### PUT `/admin/users/{user_id}/points` — 포인트 조정
+
+| 파라미터 | 위치 | 설명 |
+|---------|------|------|
+| user_id | Path | 회원 ID |
+
+**Request Body**
+```json
+{
+  "amount": 10000,
+  "description": "이벤트 지급"
+}
+```
+> `amount`가 양수면 지급, 음수면 차감
+
+**Response 200**
+```json
+{ "success": true, "points_after": 15000 }
+```
+
+---
+
+#### PUT `/admin/users/{user_id}/admin` — 관리자 권한 변경
+
+**Request Body**
+```json
+{ "is_admin": true }
+```
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+#### DELETE `/admin/users/{user_id}` — 회원 비활성화
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+#### POST `/admin/users/{user_id}/restore` — 회원 복구
+
+**Response 200**
+```json
+{ "success": true }
+```
+
+---
+
+### 주문 관리
+
+#### GET `/admin/orders` — 전체 주문 조회
+
+**Response 200**
+```json
+{
+  "orders": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "product_id": "abc123",
+      "product_name": "유기농 사과",
+      "product_image": "https://...",
+      "quantity": 2,
+      "unit_price": 3500,
+      "total_price": 7000,
+      "status": "completed",
+      "created_at": "2025-06-01T12:00:00"
+    }
+  ]
+}
+```
+
+---
+
+## 8. 공통 응답
+
+### 헬스체크
+
+#### GET `/health`
+
+```json
+{ "status": "ok" }
+```
+
+---
+
+### HTTP 에러 형식
+
+```json
+{ "detail": "에러 메시지" }
+```
+
+| 코드 | 의미 |
+|------|------|
+| 400 | 잘못된 요청 (유효성 오류, 포인트 부족 등) |
+| 401 | 인증 실패 (토큰 없음 또는 만료) |
+| 403 | 권한 없음 (관리자 전용 엔드포인트) |
+| 404 | 리소스 없음 |
+| 502 | 내부 gRPC 서비스 오류 |
+
+---
+
+### 인증 헤더
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
