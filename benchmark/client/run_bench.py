@@ -17,8 +17,7 @@ import time
 import argparse
 import statistics
 
-import urllib.request
-import json
+import socket
 import grpc
 import product_pb2
 import product_pb2_grpc
@@ -40,13 +39,23 @@ def bench_grpc(n: int):
     return times, sizes
 
 
+def _http_get(host: str, port: int, path: str) -> bytes:
+    sock = socket.create_connection((host, port), timeout=10)
+    sock.sendall(f"GET {path} HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n".encode())
+    buf = b""
+    while chunk := sock.recv(4096):
+        buf += chunk
+    sock.close()
+    return buf.split(b"\r\n\r\n", 1)[1]
+
+
 def bench_rest(n: int):
-    url = f"{REST_BASE}/products?target=best&page=1&page_size=20"
+    host, port = REST_BASE.replace("http://", "").split(":")
+    path = "/products?target=best&page=1&page_size=20"
     times, sizes = [], []
     for _ in range(n):
-        t0  = time.perf_counter()
-        with urllib.request.urlopen(url, timeout=10) as res:
-            body = res.read()
+        t0   = time.perf_counter()
+        body = _http_get(host, int(port), path)
         times.append((time.perf_counter() - t0) * 1000)
         sizes.append(len(body))
     return times, sizes
